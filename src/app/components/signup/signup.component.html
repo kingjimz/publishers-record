@@ -1,37 +1,69 @@
-<main class="auth-page">
-  <section class="promo-panel">
-    <p class="eyebrow">Get started</p>
-    <h1>Create your workspace.</h1>
-    <p class="subtitle">
-      Set up your account in minutes and start organizing your publishing operations.
-    </p>
-  </section>
+<div class="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-6 py-8">
+  <div class="w-full max-w-sm mx-auto">
+    <div class="mb-8">
+      <h1 class="text-2xl font-semibold text-slate-900 tracking-tight">Create account</h1>
+      <p class="mt-1.5 text-sm text-slate-500">Sign up for Publishers Record</p>
+    </div>
 
-  <section class="auth-card-container">
-    <form class="auth-card">
-      <h2>Sign up</h2>
-      <p class="description">Create an account to access your dashboard.</p>
+    <form (ngSubmit)="onSignup()" class="space-y-5">
+      @if (error) {
+        <div class="p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg" role="alert">{{ error }}</div>
+      }
+      @if (success) {
+        <div class="p-3 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg" role="status">{{ success }}</div>
+      }
 
-      <label for="signup-name">Full name</label>
-      <input id="signup-name" type="text" placeholder="Jane Doe" autocomplete="name" />
+      <div>
+        <label for="signup-name" class="block text-sm font-medium text-slate-700 mb-1.5">Full name</label>
+        <input
+          id="signup-name"
+          type="text"
+          class="w-full px-3 py-2.5 border border-slate-200 bg-white text-slate-900 rounded-lg focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
+          [(ngModel)]="fullName"
+          name="fullName"
+          autocomplete="name"
+          placeholder="Your name"
+        />
+      </div>
 
-      <label for="signup-email">Email</label>
-      <input id="signup-email" type="email" placeholder="you@company.com" autocomplete="email" />
+      <div>
+        <label for="signup-email" class="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
+        <input
+          id="signup-email"
+          type="email"
+          class="w-full px-3 py-2.5 border border-slate-200 bg-white text-slate-900 rounded-lg focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
+          [(ngModel)]="email"
+          name="email"
+          required
+          autocomplete="email"
+          placeholder="you@example.com"
+        />
+      </div>
 
-      <label for="signup-password">Password</label>
-      <input
-        id="signup-password"
-        type="password"
-        placeholder="Create a strong password"
-        autocomplete="new-password"
-      />
+      <div>
+        <label for="signup-password" class="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
+        <input
+          id="signup-password"
+          type="password"
+          class="w-full px-3 py-2.5 border border-slate-200 bg-white text-slate-900 rounded-lg focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
+          [(ngModel)]="password"
+          name="password"
+          required
+          autocomplete="new-password"
+          placeholder="Create a strong password"
+        />
+      </div>
 
-      <button type="submit">Create account</button>
-
-      <p class="switch-link">
-        Already have an account?
-        <a routerLink="/login">Sign in</a>
-      </p>
+      <button type="submit"
+        class="w-full py-3 text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-60 transition-colors"
+        [disabled]="loading">
+        {{ loading ? 'Creating...' : 'Create account' }}
+      </button>
     </form>
-  </section>
-</main>
+
+    <p class="mt-8 text-center text-sm text-slate-500">
+      Already have an account?
+      <a routerLink="/login" class="text-primary-600 hover:underline font-medium">Sign in</a>
+    </p>
+  </div>
+</div>

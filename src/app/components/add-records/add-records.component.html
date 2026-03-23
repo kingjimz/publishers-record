@@ -1,0 +1,191 @@
+<div class="px-4 py-6 sm:px-6 md:p-8 max-w-7xl mx-auto min-w-0">
+  <!-- Header -->
+  <div class="mb-6 md:mb-8">
+    <h1 class="mb-2 text-3xl font-semibold text-slate-900 tracking-tight">Add Records</h1>
+    <p class="text-sm text-slate-500">Create or edit publisher records for the congregation.</p>
+  </div>
+
+  <div class="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
+    <!-- Main form area -->
+    <div class="space-y-6">
+      <!-- Service year selector -->
+      <div class="bg-white rounded-lg border border-gray-200 shadow-soft p-5">
+        <div class="flex flex-wrap items-center gap-4">
+          <app-service-year-selector (yearChanged)="onYearChanged()" />
+          @if (recordsLoading) {
+            <span class="text-sm text-slate-400">Loading...</span>
+          }
+        </div>
+      </div>
+
+      <!-- Publisher form -->
+      <form class="bg-white rounded-lg border border-gray-200 shadow-soft p-5" (ngSubmit)="onSaveRecord()">
+        <h2 class="text-lg font-medium text-gray-900 tracking-tight mb-4">Publisher Information</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Name <span class="text-red-500">*</span></label>
+            <input type="text"
+              class="w-full px-3 py-2 border border-slate-200 bg-white text-slate-900 rounded-lg focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
+              [(ngModel)]="publisherName" name="publisherName" required placeholder="Publisher name" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+            <select
+              class="w-full px-3 py-2 border border-slate-200 bg-white text-slate-900 rounded-lg focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
+              [(ngModel)]="gender" name="gender">
+              <option value="">-- Select --</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Date of birth</label>
+            <input type="date"
+              class="w-full px-3 py-2 border border-slate-200 bg-white text-slate-900 rounded-lg focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
+              [(ngModel)]="dateOfBirth" name="dateOfBirth" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Date of baptism</label>
+            <input type="date"
+              class="w-full px-3 py-2 border border-slate-200 bg-white text-slate-900 rounded-lg focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
+              [(ngModel)]="dateOfBaptism" name="dateOfBaptism" />
+          </div>
+        </div>
+
+        <!-- Hope -->
+        <h3 class="text-sm font-medium text-gray-700 mb-3">Hope</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-5">
+          <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" [(ngModel)]="otherSheep" name="otherSheep" />
+            Other sheep
+          </label>
+          <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" [(ngModel)]="anointed" name="anointed" />
+            Anointed
+          </label>
+        </div>
+
+        <!-- Privileges -->
+        <h3 class="text-sm font-medium text-gray-700 mb-3">Privileges</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
+          <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" [(ngModel)]="elder" name="elder" />
+            Elder
+          </label>
+          <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" [(ngModel)]="ministerialServant" name="ministerialServant" />
+            Ministerial servant
+          </label>
+          <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" [(ngModel)]="regularPioneer" name="regularPioneer" />
+            Regular pioneer
+          </label>
+          <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" [(ngModel)]="specialPioneer" name="specialPioneer" />
+            Special pioneer
+          </label>
+          <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" [(ngModel)]="fieldMissionary" name="fieldMissionary" />
+            Field missionary
+          </label>
+        </div>
+
+        <!-- Monthly records table -->
+        <h3 class="text-sm font-medium text-gray-700 mb-3">Monthly Records</h3>
+        <div class="overflow-x-auto rounded-lg border border-gray-200 mb-5">
+          <table class="w-full min-w-[700px]">
+            <thead>
+              <tr class="bg-gray-50">
+                <th class="text-left py-2.5 px-3 text-sm font-medium text-gray-600">Month</th>
+                <th class="text-center py-2.5 px-3 text-sm font-medium text-gray-600">Shared in Ministry</th>
+                <th class="text-center py-2.5 px-3 text-sm font-medium text-gray-600">Bible Studies</th>
+                <th class="text-center py-2.5 px-3 text-sm font-medium text-gray-600">Auxiliary Pioneer</th>
+                <th class="text-center py-2.5 px-3 text-sm font-medium text-gray-600 w-24">Hours</th>
+                <th class="text-left py-2.5 px-3 text-sm font-medium text-gray-600">Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of monthlyRecords; track row.month) {
+                <tr class="border-t border-gray-200">
+                  <td class="py-2 px-3 text-sm text-gray-900 font-medium">{{ row.month }}</td>
+                  <td class="text-center py-2 px-3">
+                    <input type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      [(ngModel)]="row.sharedInMinistry" [name]="'shared' + row.month" />
+                  </td>
+                  <td class="py-2 px-3">
+                    <input type="number" min="0" step="1"
+                      class="w-full px-2 py-1 border border-gray-200 rounded text-sm text-center focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none"
+                      [(ngModel)]="row.bibleStudies" [name]="'bible' + row.month" />
+                  </td>
+                  <td class="text-center py-2 px-3">
+                    <input type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      [(ngModel)]="row.auxiliaryPioneer" [name]="'aux' + row.month" />
+                  </td>
+                  <td class="py-2 px-3">
+                    <input type="number" min="0" step="0.5"
+                      class="w-full px-2 py-1 border border-gray-200 rounded text-sm text-center focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none"
+                      [(ngModel)]="row.hours" [name]="'hours' + row.month" />
+                  </td>
+                  <td class="py-2 px-3">
+                    <input type="text"
+                      class="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none"
+                      [(ngModel)]="row.remarks" [name]="'remarks' + row.month" placeholder="Notes..." />
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="flex flex-wrap items-center gap-3">
+          <button type="submit"
+            class="btn btn-primary px-5 py-2.5 rounded-lg text-sm font-medium"
+            [disabled]="saving">
+            {{ saving ? 'Saving...' : 'Save Record' }}
+          </button>
+          <button type="button"
+            class="btn btn-outline-secondary px-5 py-2.5 rounded-lg text-sm font-medium"
+            (click)="onResetForm()">
+            Reset
+          </button>
+        </div>
+
+        @if (error) {
+          <div class="mt-4 p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg" role="alert">{{ error }}</div>
+        }
+        @if (success) {
+          <div class="mt-4 p-3 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg" role="status">{{ success }}</div>
+        }
+      </form>
+    </div>
+
+    <!-- Sidebar: existing publishers -->
+    <aside class="bg-white rounded-lg border border-gray-200 shadow-soft p-5 h-fit sticky top-20">
+      <h3 class="text-sm font-medium text-gray-900 mb-3">Publishers in {{ supabase.serviceYearLabel() }}</h3>
+
+      @if (recordsLoading) {
+        <p class="text-gray-500 text-sm">Loading...</p>
+      } @else if (yearRecords.length === 0) {
+        <p class="text-gray-400 text-sm">No records yet.</p>
+      } @else {
+        <div class="space-y-1.5 max-h-[60vh] overflow-y-auto">
+          @for (record of yearRecords; track record.publisher_name) {
+            <button type="button"
+              class="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-primary-50 hover:text-primary-700 transition-colors flex items-center justify-between gap-2"
+              (click)="onEditRecord(record)">
+              <span class="truncate">{{ record.publisher_name }}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 shrink-0" fill="none"
+                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+            </button>
+          }
+        </div>
+      }
+    </aside>
+  </div>
+</div>
