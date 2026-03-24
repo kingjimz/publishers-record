@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 import { PublisherRecord, SupabaseService } from '../../services/supabase.service';
 import { ToastService } from '../../services/toast.service';
@@ -10,7 +10,7 @@ import { ServiceYearSelectorComponent } from '../service-year-selector/service-y
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, ServiceYearSelectorComponent],
+  imports: [CommonModule, FormsModule, RouterLink, ServiceYearSelectorComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css',
 })

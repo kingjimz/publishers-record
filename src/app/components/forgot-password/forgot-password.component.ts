@@ -7,15 +7,16 @@ import { SupabaseService } from '../../services/supabase.service';
 import { ToastService } from '../../services/toast.service';
 
 @Component({
-  selector: 'app-login',
+  selector: 'app-forgot-password',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
-  templateUrl: './login.component.html',
-  styleUrl: './login.component.css',
+  templateUrl: './forgot-password.component.html',
+  styleUrl: './forgot-password.component.css',
 })
-export class LoginComponent implements OnInit {
+export class ForgotPasswordComponent implements OnInit {
   protected email = '';
-  protected password = '';
+  protected newPassword = '';
+  protected confirmPassword = '';
   protected loading = false;
 
   constructor(
@@ -27,11 +28,11 @@ export class LoginComponent implements OnInit {
 
   ngOnInit(): void {
     if (this.supabase.isAuthenticated()) {
-      this.router.navigate(['/dashboard']);
+      void this.router.navigate(['/dashboard']);
     }
   }
 
-  protected async onLogin(): Promise<void> {
+  protected async onSubmit(): Promise<void> {
     this.toast.dismiss();
     this.loading = true;
     this.cdr.detectChanges();
@@ -47,20 +48,25 @@ export class LoginComponent implements OnInit {
         this.toast.showError('Please enter your email.');
         return;
       }
-      if (!this.password) {
-        this.toast.showError('Please enter your password.');
+      if (!this.newPassword) {
+        this.toast.showError('Please enter a new password.');
+        return;
+      }
+      if (this.newPassword !== this.confirmPassword) {
+        this.toast.showError('New password and confirmation do not match.');
         return;
       }
 
-      const { error } = await this.supabase.signInWithPassword(email, this.password);
-      if (error) {
-        this.toast.showError(error.message);
+      const err = await this.supabase.resetPasswordWithEmail(email, this.newPassword);
+      if (err) {
+        this.toast.showError(err);
         return;
       }
 
-      await this.router.navigate(['/dashboard']);
-    } catch (err) {
-      this.toast.showError(err instanceof Error ? err.message : 'Login failed unexpectedly.');
+      this.toast.showSuccess('Password updated. You can sign in with your new password.');
+      await this.router.navigate(['/login']);
+    } catch (e) {
+      this.toast.showError(e instanceof Error ? e.message : 'Password reset failed unexpectedly.');
     } finally {
       this.loading = false;
       this.cdr.detectChanges();

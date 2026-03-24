@@ -10,6 +10,11 @@
   <!-- Service year selector -->
   <div class="flex flex-wrap items-center gap-4 mb-6">
     <app-service-year-selector (yearChanged)="onYearChanged()" />
+    <a
+      routerLink="/add-records"
+      class="text-sm font-medium text-primary-600 hover:text-primary-700 underline-offset-2 hover:underline shrink-0">
+      Add Records
+    </a>
     @if (recordsLoading) {
       <span class="text-sm text-slate-400">Loading...</span>
     }
@@ -38,12 +43,6 @@
       <div class="text-2xl font-medium text-gray-900">{{ ministerialServantCount }}</div>
     </div>
   </div>
-
-  @if (!recordsLoading && yearRecords.length === 0) {
-    <div class="mb-6 p-4 rounded-lg border border-amber-100 bg-amber-50/80">
-      <p class="text-sm text-amber-900">No publisher records for {{ supabase.serviceYearLabel() }} yet. Use <span class="font-medium">Add Records</span> to copy from the previous year or create entries.</p>
-    </div>
-  }
 
   <!-- Google-style search -->
   <section class="flex flex-col items-center justify-center py-6 sm:py-12 px-2">

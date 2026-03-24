@@ -1,6 +1,6 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
-import { createClient, SupabaseClient, Session, User } from '@supabase/supabase-js';
+import { createClient, FunctionsHttpError, SupabaseClient, Session, User } from '@supabase/supabase-js';
 
 import { environment } from '../../environments/environment';
 import { CacheService } from './cache.service';
@@ -118,6 +118,39 @@ export class SupabaseService {
   public signInWithPassword(email: string, password: string) {
     if (!this.client) throw new Error('Supabase client not configured.');
     return this.client.auth.signInWithPassword({ email, password });
+  }
+
+  /**
+   * Sets a new password for the account with the given email via the
+   * `reset-password` Edge Function (service role on the server).
+   * Returns an error message string, or null on success.
+   */
+  public async resetPasswordWithEmail(email: string, newPassword: string): Promise<string | null> {
+    if (!this.client) return 'Authentication is not configured yet.';
+
+    const { data, error } = await this.client.functions.invoke<{ ok?: boolean; error?: string }>(
+      'reset-password',
+      { body: { email: email.trim(), password: newPassword } }
+    );
+
+    if (error instanceof FunctionsHttpError) {
+      try {
+        const body = (await error.context.json()) as { error?: string };
+        if (body?.error && typeof body.error === 'string') return body.error;
+      } catch {
+        /* ignore */
+      }
+      return 'Could not reset password. Try again.';
+    }
+
+    if (error) {
+      return error.message || 'Could not reset password.';
+    }
+
+    if (data?.error) return data.error;
+    if (!data?.ok) return 'Could not reset password.';
+
+    return null;
   }
 
   public async signOut(): Promise<void> {
