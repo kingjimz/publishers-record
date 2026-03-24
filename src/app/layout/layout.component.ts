@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { SupabaseService } from '../services/supabase.service';
+import { layoutRouteAnimations } from '../animations/layout-route.animations';
 
 @Component({
   selector: 'app-layout',
@@ -9,6 +10,7 @@ import { SupabaseService } from '../services/supabase.service';
   imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
   templateUrl: './layout.component.html',
   styleUrl: './layout.component.css',
+  animations: [layoutRouteAnimations],
 })
 export class LayoutComponent {
   readonly supabase: SupabaseService;
@@ -29,5 +31,14 @@ export class LayoutComponent {
   async onSignOut(): Promise<void> {
     this.closeHeaderMenu();
     await this.supabase.signOut();
+  }
+
+  /** Drives `layoutRouteAnimations` — must match `data.animation` on child routes. */
+  routeAnimation(outlet: RouterOutlet): string {
+    if (!outlet?.isActivated) {
+      return '';
+    }
+    const key = outlet.activatedRouteData['animation'];
+    return typeof key === 'string' ? key : '';
   }
 }

@@ -1,38 +1,32 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
 import { PublisherRecord, SupabaseService } from '../../services/supabase.service';
+import { ToastService } from '../../services/toast.service';
 import { ServiceYearSelectorComponent } from '../service-year-selector/service-year-selector.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, ServiceYearSelectorComponent],
+  imports: [CommonModule, FormsModule, ServiceYearSelectorComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css',
 })
 export class DashboardComponent implements OnInit {
-  protected error: string | null = null;
   protected recordsLoading = false;
   protected yearRecords: PublisherRecord[] = [];
 
   constructor(
     protected readonly supabase: SupabaseService,
     private readonly router: Router,
+    private readonly toast: ToastService,
     private readonly cdr: ChangeDetectorRef
   ) {}
 
   async ngOnInit(): Promise<void> {
     await this.loadRecordsForYear();
-  }
-
-  protected async goToAddRecords(): Promise<void> {
-    await this.router.navigate(['/add-records']);
-  }
-
-  protected async goToSearchRecords(): Promise<void> {
-    await this.router.navigate(['/search-records']);
   }
 
   protected async onYearChanged(): Promise<void> {
@@ -61,36 +55,20 @@ export class DashboardComponent implements OnInit {
     return this.yearRecords.filter((r) => r.ministerial_servant).length;
   }
 
-  protected copying = false;
-  protected copyMessage: string | null = null;
+  protected searchQuery = '';
 
-  protected async onCopyFromPreviousYear(): Promise<void> {
-    this.copying = true;
-    this.copyMessage = null;
-    this.cdr.detectChanges();
+  protected async onDashboardSearch(): Promise<void> {
+    const text = this.searchQuery.trim();
+    if (!text) return;
+    await this.router.navigate(['/search-records'], { queryParams: { q: text } });
+  }
 
-    try {
-      const currentYear = this.supabase.serviceYear();
-      const previousYear = currentYear - 1;
-      const count = await this.supabase.copyPublishersFromYear(previousYear, currentYear);
-
-      if (count === 0) {
-        this.copyMessage = `No new publishers to copy from ${previousYear}\u2013${previousYear + 1}. They may already exist in the current year.`;
-      } else {
-        this.copyMessage = `Copied ${count} publisher${count === 1 ? '' : 's'} from ${previousYear}\u2013${previousYear + 1} with blank monthly records.`;
-      }
-      await this.loadRecordsForYear();
-    } catch (err) {
-      this.error = err instanceof Error ? err.message : 'Failed to copy publishers.';
-    } finally {
-      this.copying = false;
-      this.cdr.detectChanges();
-    }
+  protected onClearSearch(): void {
+    this.searchQuery = '';
   }
 
   private async loadRecordsForYear(): Promise<void> {
     this.recordsLoading = true;
-    this.error = null;
     this.cdr.detectChanges();
 
     try {
@@ -98,7 +76,9 @@ export class DashboardComponent implements OnInit {
         this.supabase.serviceYear()
       );
     } catch (err) {
-      this.error = err instanceof Error ? err.message : 'Failed to load service year records.';
+      this.toast.showError(
+        err instanceof Error ? err.message : 'Failed to load service year records.'
+      );
     } finally {
       this.recordsLoading = false;
       this.cdr.detectChanges();

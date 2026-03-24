@@ -59,16 +59,25 @@ export class SupabaseService {
   }
 
   nextServiceYear(): void {
-    this._serviceYear.update((y) => y + 1);
+    const max = SupabaseService.allowedMaxServiceYearStart();
+    this._serviceYear.update((y) => (y >= max ? y : y + 1));
   }
 
   previousServiceYear(): void {
     this._serviceYear.update((y) => y - 1);
   }
 
-  private static defaultServiceYear(): number {
+  /**
+   * Latest service year start (September) that is not in the future.
+   * Same rule as the initial default selection.
+   */
+  static allowedMaxServiceYearStart(): number {
     const now = new Date();
     return now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+  }
+
+  private static defaultServiceYear(): number {
+    return SupabaseService.allowedMaxServiceYearStart();
   }
 
   constructor(
@@ -111,11 +120,6 @@ export class SupabaseService {
     return this.client.auth.signInWithPassword({ email, password });
   }
 
-  public signUp(email: string, password: string, options?: { data?: Record<string, unknown> }) {
-    if (!this.client) throw new Error('Supabase client not configured.');
-    return this.client.auth.signUp({ email, password, options });
-  }
-
   public async signOut(): Promise<void> {
     if (!this.client) return;
     await this.client.auth.signOut();
@@ -143,6 +147,34 @@ export class SupabaseService {
   }
 
   /**
+   * Finds publisher rows whose name contains `nameContains` (case-insensitive),
+   * across **all** service years. Results are ordered by service year (newest first),
+   * then publisher name. Does not use the per-year cache.
+   */
+  public async searchPublisherRecordsAcrossYears(nameContains: string): Promise<PublisherRecord[]> {
+    if (!this.client) throw new Error('Supabase client not configured.');
+
+    const trimmed = nameContains.trim();
+    if (!trimmed) return [];
+
+    // Avoid ILIKE wildcards in user input
+    const sanitized = trimmed.replace(/[%_\\]/g, '');
+    if (!sanitized) return [];
+
+    const pattern = `%${sanitized}%`;
+
+    const { data, error } = await this.client
+      .from('publisher_records')
+      .select('*')
+      .ilike('publisher_name', pattern)
+      .order('service_year_start', { ascending: false })
+      .order('publisher_name', { ascending: true });
+
+    if (error) throw error;
+    return (data ?? []) as PublisherRecord[];
+  }
+
+  /**
    * Upserts a publisher record, then invalidates and re-fetches the
    * cache for that service year so all pages see fresh data immediately.
    */
@@ -164,6 +196,26 @@ export class SupabaseService {
     this.cache.set(cacheKey, freshRecords);
 
     return data as PublisherRecord;
+  }
+
+  /**
+   * Deletes a publisher record by its id, then refreshes the cache
+   * for the corresponding service year.
+   */
+  public async deletePublisherRecord(id: string, serviceYearStart: number): Promise<void> {
+    if (!this.client) throw new Error('Supabase client not configured.');
+
+    const { error } = await this.client
+      .from('publisher_records')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    const cacheKey = `${RECORDS_CACHE_PREFIX}${serviceYearStart}`;
+    this.cache.invalidate(cacheKey);
+    const fresh = await this.fetchRecordsFromSupabase(serviceYearStart);
+    this.cache.set(cacheKey, fresh);
   }
 
   /**

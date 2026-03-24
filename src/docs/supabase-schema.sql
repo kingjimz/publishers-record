@@ -23,6 +23,11 @@ create table if not exists public.publisher_records (
 create index if not exists idx_publisher_records_service_year
   on public.publisher_records(service_year_start);
 
+-- Optional: speeds up ILIKE name search across years (requires pg_trgm)
+-- create extension if not exists pg_trgm;
+-- create index if not exists idx_publisher_records_name_trgm
+--   on public.publisher_records using gin (publisher_name gin_trgm_ops);
+
 create trigger handle_publisher_records_updated_at
 before update on public.publisher_records
 for each row execute procedure extensions.moddatetime(updated_at);

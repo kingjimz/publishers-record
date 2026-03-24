@@ -1,3 +1,9 @@
 :host {
   display: block;
 }
+
+/* Clip horizontal slide during route enter animation (no stray scrollbar). */
+.layout-route-shell {
+  position: relative;
+  overflow-x: hidden;
+}

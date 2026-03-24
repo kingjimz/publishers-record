@@ -1,0 +1,22 @@
+<div class="h-screen overflow-hidden bg-slate-50 flex flex-col items-center justify-center px-6 py-6">
+  <div class="w-full max-w-md mx-auto text-center">
+    <p class="text-sm font-semibold text-primary-600 tracking-wide uppercase mb-2">404</p>
+    <h1 class="text-2xl font-semibold text-slate-900 tracking-tight">Page not found</h1>
+    <p class="mt-2 text-sm text-slate-500">
+      The page you’re looking for doesn’t exist or the link may be incorrect.
+    </p>
+    <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+      @if (supabase.isAuthenticated()) {
+        <a routerLink="/dashboard"
+          class="w-full sm:w-auto px-5 py-2.5 text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 rounded-lg text-center transition-colors">
+          Go to dashboard
+        </a>
+      } @else {
+        <a routerLink="/login"
+          class="w-full sm:w-auto px-5 py-2.5 text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 rounded-lg text-center transition-colors">
+          Sign in
+        </a>
+      }
+    </div>
+  </div>
+</div>

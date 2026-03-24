@@ -1,0 +1,13 @@
+# https://docs.netlify.com/configure-builds/file-based-configuration/
+[build]
+  command = "yarn install --frozen-lockfile && yarn build"
+  publish = "dist/publishers-record/browser"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Angular client-side routing: serve index.html for unknown paths
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

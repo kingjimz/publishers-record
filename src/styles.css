@@ -40,7 +40,12 @@
   }
 
   .btn-primary {
-    @apply bg-primary-500 hover:bg-primary-600 text-white shadow-soft hover:shadow-soft-lg;
+    @apply bg-primary-500 text-white shadow-soft;
+    @apply hover:bg-primary-600 hover:shadow-soft-lg;
+    /* Disabled: static muted look — no hover/active brightening */
+    @apply disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none;
+    @apply disabled:hover:bg-gray-200 disabled:hover:text-gray-400 disabled:hover:shadow-none;
+    @apply disabled:active:bg-gray-200 disabled:cursor-not-allowed;
   }
 
   .btn-outline-primary {

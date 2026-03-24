@@ -1,8 +1,15 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
+import { Subscription } from 'rxjs';
 
 import { PublisherRecord, SupabaseService } from '../../services/supabase.service';
+import { ToastService } from '../../services/toast.service';
+import {
+  buildPublisherRecordPrintDocument,
+  sanitizeFilenamePart,
+} from '../../utils/publisher-record-print';
 import { ServiceYearSelectorComponent } from '../service-year-selector/service-year-selector.component';
 
 @Component({
@@ -12,18 +19,36 @@ import { ServiceYearSelectorComponent } from '../service-year-selector/service-y
   templateUrl: './search-records.component.html',
   styleUrl: './search-records.component.css',
 })
-export class SearchRecordsComponent {
+export class SearchRecordsComponent implements OnInit, OnDestroy {
   protected loading = false;
-  protected error: string | null = null;
   protected query = '';
   protected hasSearched = false;
   protected records: PublisherRecord[] = [];
   protected expandedPublisher: string | null = null;
 
+  private querySub?: Subscription;
+
   constructor(
     protected readonly supabase: SupabaseService,
-    private readonly cdr: ChangeDetectorRef
+    private readonly toast: ToastService,
+    private readonly cdr: ChangeDetectorRef,
+    private readonly route: ActivatedRoute
   ) {}
+
+  ngOnInit(): void {
+    this.querySub = this.route.queryParams.subscribe((params) => {
+      const q = params['q'];
+      if (q == null || String(q).trim() === '') return;
+      const text = String(q).trim();
+      this.query = text;
+      this.hasSearched = true;
+      void this.loadRecords();
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.querySub?.unsubscribe();
+  }
 
   protected async onSearch(): Promise<void> {
     const text = this.query.trim();
@@ -40,40 +65,139 @@ export class SearchRecordsComponent {
     this.expandedPublisher = null;
   }
 
-  protected async onYearChanged(): Promise<void> {
-    if (!this.hasSearched) return;
-    await this.loadRecords();
+  /** Selected year changed — view filters client-side (search data already loaded). */
+  protected onYearChanged(): void {
+    this.cdr.detectChanges();
   }
 
+  /** All rows returned by cross-year search, narrowed by current query text. */
   protected get filteredRecords(): PublisherRecord[] {
     const text = this.query.trim().toLowerCase();
     if (!text) return [];
     return this.records.filter((r) => r.publisher_name.toLowerCase().includes(text));
   }
 
-  protected toggleExpand(name: string): void {
-    this.expandedPublisher = this.expandedPublisher === name ? null : name;
+  /** Rows shown in the list: selected service year only (search still used all years). */
+  protected get recordsForSelectedYear(): PublisherRecord[] {
+    const y = this.supabase.serviceYear();
+    return this.filteredRecords.filter((r) => r.service_year_start === y);
   }
 
-  protected getActiveMonths(record: PublisherRecord): number {
-    return record.months?.filter((m) => m.sharedInMinistry).length ?? 0;
+  /** Records matching the search but in other years than the selected one. */
+  protected get otherYearsMatchCount(): number {
+    const y = this.supabase.serviceYear();
+    return this.filteredRecords.filter((r) => r.service_year_start !== y).length;
+  }
+
+  /** e.g. "2023–2024, 2022–2023" for empty-state hints (newest first). */
+  protected get otherYearsLabels(): string {
+    const y = this.supabase.serviceYear();
+    const starts = new Set<number>();
+    for (const r of this.filteredRecords) {
+      if (r.service_year_start !== y) starts.add(r.service_year_start);
+    }
+    return [...starts]
+      .sort((a, b) => b - a)
+      .map((s) => `${s}\u2013${s + 1}`)
+      .join(', ');
+  }
+
+  /** Stable id for expand/collapse (same name can exist in multiple years). */
+  protected recordRowKey(record: PublisherRecord): string {
+    return record.id ?? `${record.service_year_start}\u0000${record.publisher_name}`;
+  }
+
+  protected toggleExpand(record: PublisherRecord): void {
+    const key = this.recordRowKey(record);
+    this.expandedPublisher = this.expandedPublisher === key ? null : key;
   }
 
   protected getTotalHours(record: PublisherRecord): number {
     return record.months?.reduce((sum, m) => sum + (m.hours ?? 0), 0) ?? 0;
   }
 
-  private async loadRecords(): Promise<void> {
-    this.loading = true;
-    this.error = null;
+  /** Opens the official-form layout in a new window and triggers print. */
+  protected printRecord(record: PublisherRecord, event?: Event): void {
+    event?.stopPropagation();
+    const html = buildPublisherRecordPrintDocument(record);
+    const w = window.open('', '_blank', 'noopener,noreferrer,width=960,height=1200');
+    if (!w) {
+      this.toast.showError('Pop-up blocked. Allow pop-ups to print this record.');
+      return;
+    }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    const runPrint = (): void => {
+      try {
+        w.print();
+      } catch {
+        /* ignore */
+      }
+    };
+    setTimeout(runPrint, 300);
+  }
+
+  /** Downloads the same layout as a standalone HTML file (open in browser or print). */
+  protected exportRecordHtml(record: PublisherRecord, event?: Event): void {
+    event?.stopPropagation();
+    const html = buildPublisherRecordPrintDocument(record);
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `publisher-record-${sanitizeFilenamePart(record.publisher_name)}-${record.service_year_start}.html`;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    this.toast.showSuccess('Record exported as HTML.');
+  }
+
+  protected confirmingDelete: string | null = null;
+  protected deleting = false;
+
+  protected onConfirmDelete(record: PublisherRecord): void {
+    this.confirmingDelete = record.id ?? null;
+  }
+
+  protected onCancelDelete(): void {
+    this.confirmingDelete = null;
+  }
+
+  protected async onDeleteRecord(record: PublisherRecord): Promise<void> {
+    if (!record.id) return;
+    this.deleting = true;
+    this.toast.dismiss();
+    this.confirmingDelete = null;
     this.cdr.detectChanges();
 
     try {
-      this.records = await this.supabase.getPublisherRecordsByServiceYear(
-        this.supabase.serviceYear()
-      );
+      await this.supabase.deletePublisherRecord(record.id, record.service_year_start);
+      if (this.expandedPublisher === this.recordRowKey(record)) {
+        this.expandedPublisher = null;
+      }
+      this.toast.showSuccess(`Record removed for ${record.publisher_name}.`);
+      await this.loadRecords();
     } catch (err) {
-      this.error = err instanceof Error ? err.message : 'Failed to load records.';
+      this.toast.showError(err instanceof Error ? err.message : 'Failed to delete record.');
+    } finally {
+      this.deleting = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  private async loadRecords(): Promise<void> {
+    this.loading = true;
+    this.cdr.detectChanges();
+
+    try {
+      const text = this.query.trim();
+      this.records = await this.supabase.searchPublisherRecordsAcrossYears(text);
+    } catch (err) {
+      this.toast.showError(err instanceof Error ? err.message : 'Failed to load records.');
     } finally {
       this.loading = false;
       this.cdr.detectChanges();

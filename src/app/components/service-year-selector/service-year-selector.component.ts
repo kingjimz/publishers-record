@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, computed, EventEmitter, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SupabaseService } from '../../services/supabase.service';
 
@@ -12,6 +12,12 @@ import { SupabaseService } from '../../services/supabase.service';
 export class ServiceYearSelectorComponent {
   readonly supabase: SupabaseService;
 
+  /** True when the selected year is already the latest allowed (cannot go into the future). */
+  readonly nextDisabled = computed(
+    () =>
+      this.supabase.serviceYear() >= SupabaseService.allowedMaxServiceYearStart()
+  );
+
   @Output() yearChanged = new EventEmitter<number>();
 
   constructor(supabaseService: SupabaseService) {
@@ -24,6 +30,7 @@ export class ServiceYearSelectorComponent {
   }
 
   onNext(): void {
+    if (this.nextDisabled()) return;
     this.supabase.nextServiceYear();
     this.yearChanged.emit(this.supabase.serviceYear());
   }

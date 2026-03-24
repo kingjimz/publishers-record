@@ -1,0 +1,15 @@
+@keyframes toast-slide-in {
+  from {
+    transform: translateX(calc(100% + 2rem));
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.toast-slide-in {
+  animation: toast-slide-in 0.38s ease-out forwards;
+}

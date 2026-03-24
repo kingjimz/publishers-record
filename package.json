@@ -11,6 +11,7 @@
   "private": true,
   "packageManager": "yarn@1.22.22",
   "dependencies": {
+    "@angular/animations": "21.2.0",
     "@angular/common": "^21.2.0",
     "@angular/compiler": "^21.2.0",
     "@angular/core": "^21.2.0",

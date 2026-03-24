@@ -1,0 +1,12 @@
+@if (toastService.toast(); as t) {
+  <div
+    class="pointer-events-none fixed inset-0 z-[100] flex justify-end items-start pt-4 pr-4 sm:pt-5 sm:pr-6">
+    <div
+      class="pointer-events-auto max-w-sm w-full sm:w-auto min-w-[min(100%,280px)] rounded-lg border shadow-soft-lg px-4 py-3 text-sm font-medium leading-snug toast-slide-in"
+      [ngClass]="variantClass(t.variant)"
+      [attr.role]="t.variant === 'error' ? 'alert' : 'status'"
+      [attr.aria-live]="t.variant === 'error' ? 'assertive' : 'polite'">
+      {{ t.message }}
+    </div>
+  </div>
+}
