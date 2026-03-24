@@ -1,0 +1,192 @@
+<div
+  class="onboarding-backdrop fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-[2px]"
+  data-backdrop="true"
+  (click)="onBackdropClick($event)"
+  role="presentation">
+  <div
+    data-onboarding-panel
+    tabindex="-1"
+    class="w-full sm:max-w-lg max-h-[min(92vh,640px)] sm:max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl border border-slate-200/80 overflow-hidden outline-none"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="onboarding-title"
+    (click)="$event.stopPropagation()">
+    <div class="flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-slate-100 shrink-0">
+      <div class="min-w-0">
+        <h2 id="onboarding-title" class="text-lg font-semibold text-slate-900 tracking-tight">
+          How to use Publishers Record
+        </h2>
+        <p class="text-xs text-slate-500 mt-1">Step-by-step · Bolaoen Congregation</p>
+      </div>
+      <button
+        type="button"
+        class="shrink-0 p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+        (click)="onboarding.onDismissOverlay()"
+        aria-label="Close">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Step indicator -->
+    <div class="px-5 pt-4 pb-2 shrink-0">
+      <div class="flex items-center justify-center gap-1.5 mb-2" role="tablist" aria-label="Tour steps">
+        @for (i of [0, 1, 2, 3, 4, 5]; track i) {
+          <button
+            type="button"
+            class="h-2 rounded-full transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2"
+            [class.w-6]="step === i"
+            [class.bg-primary-500]="step === i"
+            [class.w-2]="step !== i"
+            [class.bg-slate-200]="step !== i"
+            [class.hover:bg-slate-300]="step !== i"
+            (click)="goToStep(i)"
+            [attr.aria-label]="'Step ' + (i + 1) + ': ' + stepLabels[i]"
+            [attr.aria-current]="step === i ? 'step' : null">
+          </button>
+        }
+      </div>
+      <p class="text-center text-xs font-medium text-slate-600">
+        Step {{ step + 1 }} of {{ stepCount }}
+        <span class="text-slate-400 font-normal"> · </span>
+        <span class="text-primary-700">{{ stepLabels[step] }}</span>
+      </p>
+    </div>
+
+    <!-- Step content -->
+    <div class="overflow-y-auto flex-1 px-5 py-3 text-sm text-slate-700 min-h-[11rem]">
+      @switch (step) {
+        @case (0) {
+          <section aria-labelledby="step-heading-0">
+            <h3 id="step-heading-0" class="text-sm font-semibold text-slate-900 mb-3">Put publisher records in first</h3>
+            <div class="rounded-lg border border-primary-200 bg-primary-50/80 px-3.5 py-3 mb-3">
+              <p class="text-sm font-medium text-primary-900 leading-snug">
+                Everything else in this app builds on data you save on <span class="whitespace-nowrap">Add Records</span>.
+              </p>
+            </div>
+            <ul class="list-disc pl-4 space-y-2 leading-relaxed text-slate-700">
+              <li>
+                <span class="font-medium text-slate-800">Search</span> only finds publishers you have already saved for at least one service year.
+              </li>
+              <li>
+                <span class="font-medium text-slate-800">Print</span> and <span class="font-medium text-slate-800">export</span> use those same saved records—there is nothing to open until the record exists.
+              </li>
+              <li>
+                <span class="font-medium text-slate-800">Dashboard</span> totals (publishers, pioneers, elders, and so on) count rows you have stored for the selected year.
+              </li>
+            </ul>
+            <p class="leading-relaxed mt-3 text-slate-600 text-xs">
+              Start by choosing the correct service year (next step), then add or copy publishers and fill in monthly ministry information before relying on Search or reports.
+            </p>
+          </section>
+        }
+        @case (1) {
+          <section aria-labelledby="step-heading-1">
+            <h3 id="step-heading-1" class="text-sm font-semibold text-slate-900 mb-3">Service year</h3>
+            <p class="leading-relaxed">
+              The <span class="font-medium text-slate-800">service year</span> starts in September (e.g. 2024 means Sep
+              2024–Aug 2025). The year selector at the top is shared across Dashboard, Add Records, and Search—set it
+              <span class="font-medium text-slate-800">before</span> you add or edit records so data lands in the right year.
+            </p>
+          </section>
+        }
+        @case (2) {
+          <section aria-labelledby="step-heading-2">
+            <h3 id="step-heading-2" class="text-sm font-semibold text-slate-900 mb-3">Add a publisher</h3>
+            <p class="leading-relaxed mb-2">
+              This is where you <span class="font-medium text-slate-800">create the record</span> the rest of the app uses. Open
+              <a routerLink="/add-records" (click)="onboarding.onDismissOverlay()" class="text-primary-600 font-medium hover:underline">Add Records</a>,
+              enter the publisher&rsquo;s name (required), optional profile fields, then fill the
+              <span class="font-medium text-slate-800">monthly</span> grid: shared in ministry, Bible studies, auxiliary
+              pioneer, hours, and remarks. Click <span class="font-medium text-slate-800">Save Record</span>.
+            </p>
+            <p class="leading-relaxed text-slate-600 text-xs">
+              Saving updates an existing row if the same name already exists for that service year.
+            </p>
+          </section>
+        }
+        @case (3) {
+          <section aria-labelledby="step-heading-3">
+            <h3 id="step-heading-3" class="text-sm font-semibold text-slate-900 mb-3">Start a new year faster</h3>
+            <p class="leading-relaxed">
+              After last year&rsquo;s records exist, use <span class="font-medium text-slate-800">Copy Previous Year Data</span> on Add Records to bring every
+              publisher&rsquo;s profile into the new year with <span class="italic">blank</span> monthly
+              fields—then complete each month as you go. Names that already exist in the new year are skipped.
+            </p>
+          </section>
+        }
+        @case (4) {
+          <section aria-labelledby="step-heading-4">
+            <h3 id="step-heading-4" class="text-sm font-semibold text-slate-900 mb-3">Search</h3>
+            <p class="leading-relaxed mb-2">
+              Once records are saved, use
+              <a routerLink="/search-records" (click)="onboarding.onDismissOverlay()" class="text-primary-600 font-medium hover:underline">Search</a>
+              or the search box on the Dashboard. Search matches names across
+              <span class="font-medium text-slate-800">all</span> service years. The list is filtered to the
+              <span class="font-medium text-slate-800">selected</span> year—change the year to see the same person in another year.
+            </p>
+            <p class="leading-relaxed text-slate-600 text-xs">
+              No matches usually means no record was saved yet for that name—go back to Add Records first.
+            </p>
+          </section>
+        }
+        @case (5) {
+          <section aria-labelledby="step-heading-5">
+            <h3 id="step-heading-5" class="text-sm font-semibold text-slate-900 mb-3">Reports &amp; print</h3>
+            <p class="leading-relaxed mb-2">
+              Monthly data you saved <span class="font-medium text-slate-800">is</span> the report for that year. To change it, use Add Records. On Search, expand a publisher and use <span class="font-medium text-slate-800">Print</span> or
+              <span class="font-medium text-slate-800">Export as HTML</span> for an official-style layout.
+            </p>
+            <p class="leading-relaxed text-slate-600 text-xs">
+              Printing reflects what is already stored—update the record on Add Records if something is missing or wrong.
+            </p>
+          </section>
+        }
+      }
+    </div>
+
+    <!-- Arrow navigation -->
+    <div class="shrink-0 px-5 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between gap-3">
+      <button
+        type="button"
+        class="flex items-center justify-center w-11 h-11 rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-colors disabled:opacity-40 disabled:pointer-events-none disabled:shadow-none"
+        (click)="prevStep()"
+        [disabled]="isFirstStep"
+        aria-label="Previous step">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+      <p class="text-xs text-slate-400 text-center flex-1 hidden sm:block">
+        Use on-screen arrows or keyboard <kbd class="px-1 py-0.5 rounded bg-slate-200/80 text-slate-600 font-sans text-[10px]">←</kbd>
+        <kbd class="px-1 py-0.5 rounded bg-slate-200/80 text-slate-600 font-sans text-[10px] ml-0.5">→</kbd>
+      </p>
+      <button
+        type="button"
+        class="flex items-center justify-center w-11 h-11 rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-colors disabled:opacity-40 disabled:pointer-events-none disabled:shadow-none"
+        (click)="nextStep()"
+        [disabled]="isLastStep"
+        aria-label="Next step">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="shrink-0 px-5 py-4 border-t border-slate-100 bg-slate-50/80 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+      @if (onboarding.isHelpMode()) {
+        <button type="button" class="btn btn-primary px-4 py-2.5 rounded-lg text-sm font-medium w-full sm:w-auto" (click)="onboarding.onDismissOverlay()">
+          Close
+        </button>
+      } @else {
+        <button type="button" class="btn btn-outline-secondary px-4 py-2.5 rounded-lg text-sm font-medium w-full sm:w-auto" (click)="onboarding.onRemindLater()">
+          Remind me later
+        </button>
+        <button type="button" class="btn btn-primary px-4 py-2.5 rounded-lg text-sm font-medium w-full sm:w-auto" (click)="onboarding.onGotIt()">
+          Got it, don&rsquo;t show again
+        </button>
+      }
+    </div>
+  </div>
+</div>
