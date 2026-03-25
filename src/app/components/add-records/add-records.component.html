@@ -164,7 +164,7 @@
         </div>
 
         <!-- Action buttons -->
-        <div>
+        <div class="flex flex-wrap items-center gap-3">
           <button type="submit"
             class="btn btn-primary px-5 py-2.5 rounded-lg text-sm font-medium"
             [disabled]="isSaveDisabled()"
@@ -172,6 +172,14 @@
             [title]="isSaveDisabled() && !saving && !recordsLoading && !copying ? (publisherName.trim() ? 'Change something to save, or use the sidebar to load another publisher.' : 'Enter a publisher name to save.') : null">
             {{ saving ? 'Saving...' : 'Save Record' }}
           </button>
+
+          @if (hasSelectedPublisher) {
+            <button type="button"
+              class="btn btn-outline-secondary px-5 py-2.5 rounded-lg text-sm font-medium"
+              (click)="onCancelEdit()">
+              Cancel
+            </button>
+          }
         </div>
 
       </form>

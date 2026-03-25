@@ -41,6 +41,11 @@ export class AddRecordsComponent implements OnInit {
   /** JSON snapshot of last loaded/saved payload; null = new unsaved entry (only name required). */
   private editBaselineJson: string | null = null;
 
+  /** True when we loaded/edit an existing publisher (sidebar selection or after saving). */
+  protected get hasSelectedPublisher(): boolean {
+    return this.editBaselineJson !== null;
+  }
+
   constructor(
     protected readonly supabase: SupabaseService,
     private readonly toast: ToastService,
@@ -181,6 +186,11 @@ export class AddRecordsComponent implements OnInit {
       this.saving = false;
       this.cdr.detectChanges();
     }
+  }
+
+  protected onCancelEdit(): void {
+    if (!this.hasSelectedPublisher) return;
+    this.onResetForm();
   }
 
   protected confirmingDelete: string | null = null;

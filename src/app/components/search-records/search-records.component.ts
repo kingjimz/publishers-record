@@ -21,9 +21,13 @@ import { ServiceYearSelectorComponent } from '../service-year-selector/service-y
 })
 export class SearchRecordsComponent implements OnInit, OnDestroy {
   protected loading = false;
+  protected yearLoading = false;
+  protected readonly pageSize = 20;
+  protected page = 1;
   protected query = '';
   protected hasSearched = false;
   protected records: PublisherRecord[] = [];
+  protected yearRecords: PublisherRecord[] = [];
   protected expandedPublisher: string | null = null;
 
   private querySub?: Subscription;
@@ -36,12 +40,16 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    // Always load the full list for the currently selected service year.
+    void this.loadYearRecords();
+
     this.querySub = this.route.queryParams.subscribe((params) => {
       const q = params['q'];
       if (q == null || String(q).trim() === '') return;
       const text = String(q).trim();
       this.query = text;
       this.hasSearched = true;
+      this.resetPagination();
       void this.loadRecords();
     });
   }
@@ -55,6 +63,7 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     if (!text) return;
 
     this.hasSearched = true;
+    this.resetPagination();
     await this.loadRecords();
   }
 
@@ -63,10 +72,13 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     this.hasSearched = false;
     this.records = [];
     this.expandedPublisher = null;
+    this.resetPagination();
   }
 
   /** Selected year changed — view filters client-side (search data already loaded). */
   protected onYearChanged(): void {
+    this.resetPagination();
+    void this.loadYearRecords();
     this.cdr.detectChanges();
   }
 
@@ -105,6 +117,55 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
   /** Stable id for expand/collapse (same name can exist in multiple years). */
   protected recordRowKey(record: PublisherRecord): string {
     return record.id ?? `${record.service_year_start}\u0000${record.publisher_name}`;
+  }
+
+  protected get totalPublisherRows(): number {
+    return (this.hasSearched ? this.recordsForSelectedYear : this.yearRecords).length;
+  }
+
+  protected get pageCount(): number {
+    const total = this.totalPublisherRows;
+    return total > 0 ? Math.ceil(total / this.pageSize) : 1;
+  }
+
+  protected get effectivePage(): number {
+    return Math.min(Math.max(this.page, 1), this.pageCount);
+  }
+
+  protected get pagedPublisherRecords(): PublisherRecord[] {
+    const source = this.hasSearched ? this.recordsForSelectedYear : this.yearRecords;
+    const safePage = this.effectivePage;
+    const start = (safePage - 1) * this.pageSize;
+    return source.slice(start, start + this.pageSize);
+  }
+
+  protected get shownStartIndex(): number {
+    const total = this.totalPublisherRows;
+    if (total === 0) return 0;
+    return (this.effectivePage - 1) * this.pageSize + 1;
+  }
+
+  protected get shownEndIndex(): number {
+    const total = this.totalPublisherRows;
+    if (total === 0) return 0;
+    return Math.min(this.effectivePage * this.pageSize, total);
+  }
+
+  protected previousPage(): void {
+    if (this.effectivePage <= 1) return;
+    this.page = this.effectivePage - 1;
+    this.expandedPublisher = null;
+  }
+
+  protected nextPage(): void {
+    if (this.effectivePage >= this.pageCount) return;
+    this.page = this.effectivePage + 1;
+    this.expandedPublisher = null;
+  }
+
+  protected resetPagination(): void {
+    this.page = 1;
+    this.expandedPublisher = null;
   }
 
   protected toggleExpand(record: PublisherRecord): void {
@@ -180,7 +241,9 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
         this.expandedPublisher = null;
       }
       this.toast.showSuccess(`Record removed for ${record.publisher_name}.`);
-      await this.loadRecords();
+      await this.loadYearRecords();
+      // If the user currently has an active search, refresh cross-year results too.
+      if (this.hasSearched) await this.loadRecords();
     } catch (err) {
       this.toast.showError(err instanceof Error ? err.message : 'Failed to delete record.');
     } finally {
@@ -190,6 +253,7 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
   }
 
   private async loadRecords(): Promise<void> {
+    this.resetPagination();
     this.loading = true;
     this.cdr.detectChanges();
 
@@ -200,6 +264,22 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
       this.toast.showError(err instanceof Error ? err.message : 'Failed to load records.');
     } finally {
       this.loading = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  private async loadYearRecords(): Promise<void> {
+    this.resetPagination();
+    this.yearLoading = true;
+    this.cdr.detectChanges();
+
+    try {
+      const y = this.supabase.serviceYear();
+      this.yearRecords = await this.supabase.getPublisherRecordsByServiceYear(y);
+    } catch (err) {
+      this.toast.showError(err instanceof Error ? err.message : 'Failed to load publishers.');
+    } finally {
+      this.yearLoading = false;
       this.cdr.detectChanges();
     }
   }
