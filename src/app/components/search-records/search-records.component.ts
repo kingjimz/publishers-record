@@ -173,6 +173,31 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     this.expandedPublisher = this.expandedPublisher === key ? null : key;
   }
 
+  /**
+   * Formats an ISO date string like "2005-01-07" into "January 07, 2005".
+   * Returns "—" when missing or unparseable.
+   */
+  protected formatHumanDate(dateStr: string | null | undefined): string {
+    if (!dateStr) return '';
+
+    const raw = String(dateStr).trim();
+    const datePart = raw.length >= 10 ? raw.slice(0, 10) : raw;
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(datePart);
+    if (!match) return raw;
+
+    const year = match[1];
+    const month = Number(match[2]); // 1-12
+    const dayPadded = match[3]; // keep leading zero
+
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+
+    if (month < 1 || month > 12) return raw;
+    return `${monthNames[month - 1]} ${dayPadded}, ${year}`;
+  }
+
   protected getTotalHours(record: PublisherRecord): number {
     return record.months?.reduce((sum, m) => sum + (m.hours ?? 0), 0) ?? 0;
   }

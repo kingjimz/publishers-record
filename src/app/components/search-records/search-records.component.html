@@ -211,10 +211,22 @@
           @if (expandedPublisher === recordRowKey(record)) {
             <div class="border-t border-gray-200 px-5 py-4">
               <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-4">
-                <div class="flex flex-wrap gap-x-2 items-baseline min-w-0"><span class="text-gray-500 shrink-0">Gender:</span><span class="font-medium text-gray-900 capitalize min-w-0">{{ record.gender ?? '—' }}</span></div>
-                <div class="flex flex-wrap gap-x-2 items-baseline min-w-0"><span class="text-gray-500 shrink-0">Date of Birth:</span><span class="font-medium text-gray-900 min-w-0">{{ record.date_of_birth ?? '—' }}</span></div>
-                <div class="flex flex-wrap gap-x-2 items-baseline min-w-0"><span class="text-gray-500 shrink-0">Date of Baptism:</span><span class="font-medium text-gray-900 min-w-0">{{ record.date_of_baptism ?? '—' }}</span></div>
-                <div class="flex flex-wrap gap-x-2 items-baseline min-w-0"><span class="text-gray-500 shrink-0">Hope:</span><span class="font-medium text-gray-900 min-w-0">{{ record.anointed ? 'Anointed' : record.other_sheep ? 'Other sheep' : '—' }}</span></div>
+                <div class="flex flex-col min-w-0">
+                  <span class="text-gray-500 shrink-0">Gender:</span>
+                  <span class="font-medium text-gray-900 capitalize min-w-0">{{ record.gender ?? '' }}</span>
+                </div>
+                <div class="flex flex-col min-w-0">
+                  <span class="text-gray-500 shrink-0">Date of Birth:</span>
+                  <span class="font-medium text-gray-900 min-w-0">{{ formatHumanDate(record.date_of_birth) }}</span>
+                </div>
+                <div class="flex flex-col min-w-0">
+                  <span class="text-gray-500 shrink-0">Date of Baptism:</span>
+                  <span class="font-medium text-gray-900 min-w-0">{{ formatHumanDate(record.date_of_baptism) }}</span>
+                </div>
+                <div class="flex flex-col min-w-0">
+                  <span class="text-gray-500 shrink-0">Hope:</span>
+                  <span class="font-medium text-gray-900 min-w-0">{{ record.anointed ? 'Anointed' : record.other_sheep ? 'Other sheep' : '' }}</span>
+                </div>
               </div>
 
               <div class="overflow-x-auto rounded-lg border border-gray-200">
@@ -241,10 +253,10 @@
                               </svg>
                             </span>
                           } @else {
-                            <span class="text-gray-900">—</span>
+                            <span class="text-gray-900"></span>
                           }
                         </td>
-                        <td class="text-center py-1.5 px-3 text-sm text-gray-900">{{ m.bibleStudies ?? '—' }}</td>
+                        <td class="text-center py-1.5 px-3 text-sm text-gray-900">{{ m.bibleStudies ?? '' }}</td>
                         <td class="text-center py-1.5 px-3 text-sm text-gray-900">
                           @if (m.auxiliaryPioneer) {
                             <span class="inline-flex items-center justify-center text-emerald-600" aria-label="Yes" title="Yes">
@@ -253,11 +265,11 @@
                               </svg>
                             </span>
                           } @else {
-                            <span class="text-gray-900">—</span>
+                            <span class="text-gray-900"></span>
                           }
                         </td>
-                        <td class="text-center py-1.5 px-3 text-sm text-gray-900">{{ m.hours ?? '—' }}</td>
-                        <td class="py-1.5 px-3 text-sm text-gray-900">{{ m.remarks || '—' }}</td>
+                        <td class="text-center py-1.5 px-3 text-sm text-gray-900">{{ m.hours ?? '' }}</td>
+                        <td class="py-1.5 px-3 text-sm text-gray-900">{{ m.remarks || '' }}</td>
                       </tr>
                     }
                   </tbody>
