@@ -177,9 +177,9 @@ export class AddRecordsComponent implements OnInit {
       const payload = this.buildSavePayload();
 
       await this.supabase.upsertPublisherRecord(payload);
-      this.toast.showSuccess(`Record saved for ${payload.publisher_name}.`);
-      this.captureEditBaselineFromPayload(payload);
       await this.loadRecordsForYear();
+      this.onResetForm();
+      this.toast.showSuccess(`Record saved for ${payload.publisher_name}.`);
     } catch (err) {
       this.toast.showError(err instanceof Error ? err.message : 'Failed to save publisher record.');
     } finally {
