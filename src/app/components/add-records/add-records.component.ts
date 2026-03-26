@@ -8,6 +8,7 @@ import {
   SupabaseService,
 } from '../../services/supabase.service';
 import { ToastService } from '../../services/toast.service';
+import { groupPublishersForSidebar } from '../../utils/group-publishers';
 import { ServiceYearSelectorComponent } from '../service-year-selector/service-year-selector.component';
 
 @Component({
@@ -18,11 +19,24 @@ import { ServiceYearSelectorComponent } from '../service-year-selector/service-y
   styleUrl: './add-records.component.css',
 })
 export class AddRecordsComponent implements OnInit {
+  /** Fixed choices stored as publisher_group in the database. */
+  protected static readonly publisherGroupChoices = [
+    'Group 1',
+    'Group 2',
+    'Group 3',
+    'Group 4',
+    'Group 5',
+  ] as const;
+
+  protected readonly publisherGroupOptions = AddRecordsComponent.publisherGroupChoices;
+
   protected saving = false;
   protected recordsLoading = false;
   protected copying = false;
 
   protected publisherName = '';
+  /** One of publisherGroupChoices or '' for no group (saved as publisher_group). */
+  protected publisherGroup = '';
   protected dateOfBirth = '';
   protected dateOfBaptism = '';
   protected gender: 'male' | 'female' | 'other' | '' = '';
@@ -70,6 +84,11 @@ export class AddRecordsComponent implements OnInit {
     );
   }
 
+  /** Sidebar sections grouped by publisher_group (names sorted within each group). */
+  protected get sidebarPublisherGroups(): { label: string; records: PublisherRecord[] }[] {
+    return groupPublishersForSidebar(this.filteredYearRecords);
+  }
+
   protected clearSidebarPublisherSearch(): void {
     this.sidebarPublisherSearch = '';
     this.cdr.markForCheck();
@@ -105,6 +124,7 @@ export class AddRecordsComponent implements OnInit {
 
   protected onEditRecord(record: PublisherRecord): void {
     this.publisherName = record.publisher_name;
+    this.publisherGroup = this.normalizePublisherGroup(record.publisher_group ?? '');
     this.dateOfBirth = record.date_of_birth ?? '';
     this.dateOfBaptism = record.date_of_baptism ?? '';
     this.gender = record.gender ?? '';
@@ -226,6 +246,7 @@ export class AddRecordsComponent implements OnInit {
 
   protected onResetForm(): void {
     this.publisherName = '';
+    this.publisherGroup = '';
     this.dateOfBirth = '';
     this.dateOfBaptism = '';
     this.gender = '';
@@ -260,9 +281,11 @@ export class AddRecordsComponent implements OnInit {
 
   private buildSavePayload(): PublisherRecord {
     const publisherName = this.publisherName.trim();
+    const groupTrimmed = this.publisherGroup.trim();
     return {
       service_year_start: this.supabase.serviceYear(),
       publisher_name: publisherName,
+      publisher_group: groupTrimmed ? groupTrimmed : null,
       date_of_birth: this.dateOfBirth || null,
       date_of_baptism: this.dateOfBaptism || null,
       gender: this.gender || null,
@@ -297,6 +320,10 @@ export class AddRecordsComponent implements OnInit {
     const normalized = {
       service_year_start: r.service_year_start,
       publisher_name: r.publisher_name.trim(),
+      publisher_group: (() => {
+        const t = (r.publisher_group ?? '').trim();
+        return t || null;
+      })(),
       date_of_birth: r.date_of_birth ?? null,
       date_of_baptism: r.date_of_baptism ?? null,
       gender: r.gender ?? null,
@@ -333,6 +360,13 @@ export class AddRecordsComponent implements OnInit {
 
   private captureEditBaselineFromPayload(payload: PublisherRecord): void {
     this.editBaselineJson = this.normalizeRecordFingerprint(payload);
+  }
+
+  /** Maps legacy free-text values to '' so the dropdown stays valid. */
+  private normalizePublisherGroup(value: string): string {
+    const t = value.trim();
+    const allowed = AddRecordsComponent.publisherGroupChoices as readonly string[];
+    return allowed.includes(t) ? t : '';
   }
 
   private createDefaultMonths(): PublisherMonthlyRecord[] {

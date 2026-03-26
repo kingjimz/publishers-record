@@ -4,8 +4,16 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
 
-import { PublisherRecord, SupabaseService } from '../../services/supabase.service';
+import {
+  PublisherMonthlyRecord,
+  PublisherRecord,
+  SupabaseService,
+} from '../../services/supabase.service';
 import { ToastService } from '../../services/toast.service';
+import {
+  displayPublisherGroupLabel,
+  sortPublishersByGroupThenName,
+} from '../../utils/group-publishers';
 import {
   buildPublisherRecordPrintDocument,
   sanitizeFilenamePart,
@@ -95,6 +103,14 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     return this.filteredRecords.filter((r) => r.service_year_start === y);
   }
 
+  protected get recordsForSelectedYearSorted(): PublisherRecord[] {
+    return sortPublishersByGroupThenName(this.recordsForSelectedYear);
+  }
+
+  protected get yearRecordsSorted(): PublisherRecord[] {
+    return sortPublishersByGroupThenName(this.yearRecords);
+  }
+
   /** Records matching the search but in other years than the selected one. */
   protected get otherYearsMatchCount(): number {
     const y = this.supabase.serviceYear();
@@ -133,10 +149,23 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
   }
 
   protected get pagedPublisherRecords(): PublisherRecord[] {
-    const source = this.hasSearched ? this.recordsForSelectedYear : this.yearRecords;
+    const source = this.hasSearched ? this.recordsForSelectedYearSorted : this.yearRecordsSorted;
     const safePage = this.effectivePage;
     const start = (safePage - 1) * this.pageSize;
     return source.slice(start, start + this.pageSize);
+  }
+
+  /** Paged rows with a group heading when the group changes (including first row). */
+  protected get pagedPublisherListItems(): { record: PublisherRecord; groupHeading: string | null }[] {
+    const page = this.pagedPublisherRecords;
+    return page.map((record, i) => ({
+      record,
+      groupHeading:
+        i === 0 ||
+        displayPublisherGroupLabel(page[i - 1]!) !== displayPublisherGroupLabel(record)
+          ? displayPublisherGroupLabel(record)
+          : null,
+    }));
   }
 
   protected get shownStartIndex(): number {
@@ -244,6 +273,96 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
 
   protected confirmingDelete: string | null = null;
   protected deleting = false;
+
+  /** Modal: edit monthly service report only (profile fields stay read-only in the modal). */
+  protected reportModalRecord: PublisherRecord | null = null;
+  protected reportModalMonths: PublisherMonthlyRecord[] = [];
+  protected reportModalSaving = false;
+
+  protected openReportModal(record: PublisherRecord, event?: Event): void {
+    event?.stopPropagation();
+    this.reportModalRecord = record;
+    this.reportModalMonths = this.cloneMonthsForModal(record);
+    this.cdr.detectChanges();
+  }
+
+  protected closeReportModal(): void {
+    this.reportModalRecord = null;
+    this.reportModalMonths = [];
+    this.cdr.detectChanges();
+  }
+
+  protected async saveReportModal(): Promise<void> {
+    const base = this.reportModalRecord;
+    if (!base || this.reportModalSaving) return;
+
+    this.reportModalSaving = true;
+    this.toast.dismiss();
+    this.cdr.detectChanges();
+
+    try {
+      const payload: PublisherRecord = {
+        ...base,
+        months: this.reportModalMonths.map((item) => ({
+          month: item.month,
+          sharedInMinistry: item.sharedInMinistry,
+          bibleStudies: this.coerceNullableNumber(item.bibleStudies),
+          auxiliaryPioneer: item.auxiliaryPioneer,
+          hours: this.coerceNullableNumber(item.hours),
+          remarks: item.remarks?.trim() ?? '',
+        })),
+      };
+
+      await this.supabase.upsertPublisherRecord(payload);
+      this.toast.showSuccess(`Monthly report saved for ${base.publisher_name}.`);
+      this.closeReportModal();
+      await this.loadYearRecords();
+      if (this.hasSearched) await this.loadRecords();
+    } catch (err) {
+      this.toast.showError(err instanceof Error ? err.message : 'Failed to save monthly report.');
+    } finally {
+      this.reportModalSaving = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  private cloneMonthsForModal(record: PublisherRecord): PublisherMonthlyRecord[] {
+    const order = [
+      'September', 'October', 'November', 'December',
+      'January', 'February', 'March', 'April',
+      'May', 'June', 'July', 'August',
+    ];
+    const byMonth = new Map((record.months ?? []).map((m) => [m.month, m]));
+    return order.map((month) => {
+      const existing = byMonth.get(month);
+      if (existing) {
+        return {
+          month: existing.month,
+          sharedInMinistry: !!existing.sharedInMinistry,
+          bibleStudies: existing.bibleStudies ?? null,
+          auxiliaryPioneer: !!existing.auxiliaryPioneer,
+          hours: existing.hours ?? null,
+          remarks: existing.remarks ?? '',
+        };
+      }
+      return {
+        month,
+        sharedInMinistry: false,
+        bibleStudies: null,
+        auxiliaryPioneer: false,
+        hours: null,
+        remarks: '',
+      };
+    });
+  }
+
+  private coerceNullableNumber(value: unknown): number | null {
+    if (value == null || value === '') {
+      return null;
+    }
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  }
 
   protected onConfirmDelete(record: PublisherRecord): void {
     this.confirmingDelete = record.id ?? null;

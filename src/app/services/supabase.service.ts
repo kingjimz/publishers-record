@@ -28,6 +28,8 @@ export interface PublisherRecord {
   regular_pioneer: boolean;
   special_pioneer: boolean;
   field_missionary: boolean;
+  /** Optional congregation / territory group label for organizing lists. */
+  publisher_group?: string | null;
   months: PublisherMonthlyRecord[];
 }
 
@@ -292,6 +294,7 @@ export class SupabaseService {
       regular_pioneer: r.regular_pioneer,
       special_pioneer: r.special_pioneer,
       field_missionary: r.field_missionary,
+      publisher_group: r.publisher_group ?? null,
       months: blankMonths,
     }));
 

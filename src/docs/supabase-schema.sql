@@ -14,6 +14,7 @@ create table if not exists public.publisher_records (
   regular_pioneer boolean not null default false,
   special_pioneer boolean not null default false,
   field_missionary boolean not null default false,
+  publisher_group text null,
   months jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -22,6 +23,9 @@ create table if not exists public.publisher_records (
 
 create index if not exists idx_publisher_records_service_year
   on public.publisher_records(service_year_start);
+
+create index if not exists idx_publisher_records_service_year_publisher_group
+  on public.publisher_records (service_year_start, publisher_group);
 
 -- Optional: speeds up ILIKE name search across years (requires pg_trgm)
 -- create extension if not exists pg_trgm;
