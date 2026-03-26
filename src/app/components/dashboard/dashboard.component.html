@@ -22,26 +22,46 @@
 
   <!-- Stats cards -->
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-    <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-soft">
+    <button
+      type="button"
+      class="bg-white rounded-lg border border-gray-200 p-6 shadow-soft text-left hover:border-primary-300 hover:shadow transition cursor-pointer"
+      (click)="onTotalPublishersCardClick()"
+      aria-label="Show all publishers">
       <div class="text-sm text-gray-500 mb-1">Total Publishers</div>
       <div class="text-2xl font-medium text-gray-900">{{ totalPublishers }}</div>
-    </div>
-    <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-soft">
+    </button>
+    <button
+      type="button"
+      class="bg-white rounded-lg border border-gray-200 p-6 shadow-soft text-left hover:border-primary-300 hover:shadow transition cursor-pointer"
+      (click)="onRegularPioneersCardClick()"
+      aria-label="Show regular pioneer publishers">
       <div class="text-sm text-gray-500 mb-1">Regular Pioneers</div>
       <div class="text-2xl font-medium text-gray-900">{{ regularPioneerCount }}</div>
-    </div>
-    <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-soft">
+    </button>
+    <button
+      type="button"
+      class="bg-white rounded-lg border border-gray-200 p-6 shadow-soft text-left hover:border-primary-300 hover:shadow transition cursor-pointer"
+      (click)="onAuxiliaryPioneersCardClick()"
+      aria-label="Show auxiliary pioneer publishers">
       <div class="text-sm text-gray-500 mb-1">Auxiliary Pioneers</div>
       <div class="text-2xl font-medium text-gray-900">{{ auxiliaryPioneerCount }}</div>
-    </div>
-    <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-soft">
+    </button>
+    <button
+      type="button"
+      class="bg-white rounded-lg border border-gray-200 p-6 shadow-soft text-left hover:border-primary-300 hover:shadow transition cursor-pointer"
+      (click)="onEldersCardClick()"
+      aria-label="Show elder publishers">
       <div class="text-sm text-gray-500 mb-1">Elders</div>
       <div class="text-2xl font-medium text-gray-900">{{ elderCount }}</div>
-    </div>
-    <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-soft">
+    </button>
+    <button
+      type="button"
+      class="bg-white rounded-lg border border-gray-200 p-6 shadow-soft text-left hover:border-primary-300 hover:shadow transition cursor-pointer"
+      (click)="onMinisterialServantsCardClick()"
+      aria-label="Show ministerial servant publishers">
       <div class="text-sm text-gray-500 mb-1">Ministerial Servants</div>
       <div class="text-2xl font-medium text-gray-900">{{ ministerialServantCount }}</div>
-    </div>
+    </button>
   </div>
 
   <!-- Google-style search -->

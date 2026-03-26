@@ -31,6 +31,7 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
   protected loading = false;
   protected yearLoading = false;
   protected selectedGroup = '';
+  protected selectedPrivilege = '';
   protected query = '';
   protected hasSearched = false;
   protected records: PublisherRecord[] = [];
@@ -52,7 +53,18 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
 
     this.querySub = this.route.queryParams.subscribe((params) => {
       const q = params['q'];
-      if (q == null || String(q).trim() === '') return;
+      const privilege = params['privilege'];
+      this.selectedPrivilege = this.parsePrivilege(privilege);
+
+      if (q == null || String(q).trim() === '') {
+        this.query = '';
+        this.hasSearched = false;
+        this.records = [];
+        this.expandedPublisher = null;
+        this.cdr.detectChanges();
+        return;
+      }
+
       const text = String(q).trim();
       this.query = text;
       this.hasSearched = true;
@@ -110,6 +122,74 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     return sortPublishersByGroupThenName(this.yearRecords);
   }
 
+  protected get recordsForListBeforeGroupFilter(): PublisherRecord[] {
+    const source = this.hasSearched ? this.recordsForSelectedYearSorted : this.yearRecordsSorted;
+    if (this.selectedPrivilege === 'all') {
+      return source;
+    }
+    if (this.selectedPrivilege === 'elder') {
+      return source.filter((r) => r.elder);
+    }
+    if (this.selectedPrivilege === 'regular-pioneer') {
+      return source.filter((r) => r.regular_pioneer);
+    }
+    if (this.selectedPrivilege === 'auxiliary-pioneer') {
+      return source.filter((r) => r.months?.some((m) => m.auxiliaryPioneer));
+    }
+    if (this.selectedPrivilege === 'ministerial-servant') {
+      return source.filter((r) => r.ministerial_servant);
+    }
+    return source;
+  }
+
+  protected get listTitle(): string {
+    if (this.selectedPrivilege === 'all') return 'Publishers in the Congregation';
+    if (this.selectedPrivilege === 'elder') return 'Elders in the Congregation';
+    if (this.selectedPrivilege === 'regular-pioneer') {
+      return 'Regular Pioneers in the Congregation';
+    }
+    if (this.selectedPrivilege === 'auxiliary-pioneer') {
+      return 'Auxiliary Pioneers in the Congregation';
+    }
+    if (this.selectedPrivilege === 'ministerial-servant') {
+      return 'Ministerial Servants in the Congregation';
+    }
+    return 'Search Records';
+  }
+
+  protected get listSubtitle(): string {
+    if (this.selectedPrivilege === 'all') {
+      return 'View all publishers for the selected service year.';
+    }
+    if (this.selectedPrivilege === 'elder') {
+      return 'View all publishers serving as elders for the selected service year.';
+    }
+    if (this.selectedPrivilege === 'regular-pioneer') {
+      return 'View all publishers serving as regular pioneers for the selected service year.';
+    }
+    if (this.selectedPrivilege === 'auxiliary-pioneer') {
+      return 'View all publishers serving as auxiliary pioneers for the selected service year.';
+    }
+    if (this.selectedPrivilege === 'ministerial-servant') {
+      return 'View all publishers serving as ministerial servants for the selected service year.';
+    }
+    return 'Find a publisher by name to view their service record.';
+  }
+
+  private parsePrivilege(value: unknown): string {
+    const text = typeof value === 'string' ? value.trim() : '';
+    if (
+      text === 'all' ||
+      text === 'elder' ||
+      text === 'regular-pioneer' ||
+      text === 'auxiliary-pioneer' ||
+      text === 'ministerial-servant'
+    ) {
+      return text;
+    }
+    return '';
+  }
+
   /** Records matching the search but in other years than the selected one. */
   protected get otherYearsMatchCount(): number {
     const y = this.supabase.serviceYear();
@@ -136,7 +216,7 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
 
   /** Distinct group labels available in the current source list, sorted (No group last). */
   protected get availableGroups(): string[] {
-    const source = this.hasSearched ? this.recordsForSelectedYearSorted : this.yearRecordsSorted;
+    const source = this.recordsForListBeforeGroupFilter;
     const seen = new Set<string>();
     for (const r of source) seen.add(displayPublisherGroupLabel(r));
     return [...seen].sort((a, b) => {
@@ -148,7 +228,7 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
 
   /** Source records filtered by the selected group (all groups when selectedGroup is ''). */
   protected get filteredByGroupRecords(): PublisherRecord[] {
-    const source = this.hasSearched ? this.recordsForSelectedYearSorted : this.yearRecordsSorted;
+    const source = this.recordsForListBeforeGroupFilter;
     if (!this.selectedGroup) return source;
     return source.filter((r) => displayPublisherGroupLabel(r) === this.selectedGroup);
   }

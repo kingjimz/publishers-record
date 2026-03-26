@@ -57,6 +57,36 @@ export class DashboardComponent implements OnInit {
 
   protected searchQuery = '';
 
+  protected async onEldersCardClick(): Promise<void> {
+    await this.router.navigate(['/search-records'], {
+      queryParams: { privilege: 'elder' },
+    });
+  }
+
+  protected async onRegularPioneersCardClick(): Promise<void> {
+    await this.router.navigate(['/search-records'], {
+      queryParams: { privilege: 'regular-pioneer' },
+    });
+  }
+
+  protected async onTotalPublishersCardClick(): Promise<void> {
+    await this.router.navigate(['/search-records'], {
+      queryParams: { privilege: 'all' },
+    });
+  }
+
+  protected async onAuxiliaryPioneersCardClick(): Promise<void> {
+    await this.router.navigate(['/search-records'], {
+      queryParams: { privilege: 'auxiliary-pioneer' },
+    });
+  }
+
+  protected async onMinisterialServantsCardClick(): Promise<void> {
+    await this.router.navigate(['/search-records'], {
+      queryParams: { privilege: 'ministerial-servant' },
+    });
+  }
+
   protected async onDashboardSearch(): Promise<void> {
     const text = this.searchQuery.trim();
     if (!text) return;
