@@ -30,8 +30,7 @@ import { ServiceYearSelectorComponent } from '../service-year-selector/service-y
 export class SearchRecordsComponent implements OnInit, OnDestroy {
   protected loading = false;
   protected yearLoading = false;
-  protected readonly pageSize = 20;
-  protected page = 1;
+  protected selectedGroup = '';
   protected query = '';
   protected hasSearched = false;
   protected records: PublisherRecord[] = [];
@@ -135,65 +134,40 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     return record.id ?? `${record.service_year_start}\u0000${record.publisher_name}`;
   }
 
-  protected get totalPublisherRows(): number {
-    return (this.hasSearched ? this.recordsForSelectedYear : this.yearRecords).length;
-  }
-
-  protected get pageCount(): number {
-    const total = this.totalPublisherRows;
-    return total > 0 ? Math.ceil(total / this.pageSize) : 1;
-  }
-
-  protected get effectivePage(): number {
-    return Math.min(Math.max(this.page, 1), this.pageCount);
-  }
-
-  protected get pagedPublisherRecords(): PublisherRecord[] {
+  /** Distinct group labels available in the current source list, sorted (No group last). */
+  protected get availableGroups(): string[] {
     const source = this.hasSearched ? this.recordsForSelectedYearSorted : this.yearRecordsSorted;
-    const safePage = this.effectivePage;
-    const start = (safePage - 1) * this.pageSize;
-    return source.slice(start, start + this.pageSize);
+    const seen = new Set<string>();
+    for (const r of source) seen.add(displayPublisherGroupLabel(r));
+    return [...seen].sort((a, b) => {
+      if (a === 'No group') return 1;
+      if (b === 'No group') return -1;
+      return a.localeCompare(b, undefined, { sensitivity: 'base' });
+    });
   }
 
-  /** Paged rows with a group heading when the group changes (including first row). */
-  protected get pagedPublisherListItems(): { record: PublisherRecord; groupHeading: string | null }[] {
-    const page = this.pagedPublisherRecords;
-    return page.map((record, i) => ({
+  /** Source records filtered by the selected group (all groups when selectedGroup is ''). */
+  protected get filteredByGroupRecords(): PublisherRecord[] {
+    const source = this.hasSearched ? this.recordsForSelectedYearSorted : this.yearRecordsSorted;
+    if (!this.selectedGroup) return source;
+    return source.filter((r) => displayPublisherGroupLabel(r) === this.selectedGroup);
+  }
+
+  /** Rows with a group heading inserted when the group label changes. */
+  protected get publisherListItems(): { record: PublisherRecord; groupHeading: string | null }[] {
+    const records = this.filteredByGroupRecords;
+    return records.map((record, i) => ({
       record,
       groupHeading:
         i === 0 ||
-        displayPublisherGroupLabel(page[i - 1]!) !== displayPublisherGroupLabel(record)
+        displayPublisherGroupLabel(records[i - 1]!) !== displayPublisherGroupLabel(record)
           ? displayPublisherGroupLabel(record)
           : null,
     }));
   }
 
-  protected get shownStartIndex(): number {
-    const total = this.totalPublisherRows;
-    if (total === 0) return 0;
-    return (this.effectivePage - 1) * this.pageSize + 1;
-  }
-
-  protected get shownEndIndex(): number {
-    const total = this.totalPublisherRows;
-    if (total === 0) return 0;
-    return Math.min(this.effectivePage * this.pageSize, total);
-  }
-
-  protected previousPage(): void {
-    if (this.effectivePage <= 1) return;
-    this.page = this.effectivePage - 1;
-    this.expandedPublisher = null;
-  }
-
-  protected nextPage(): void {
-    if (this.effectivePage >= this.pageCount) return;
-    this.page = this.effectivePage + 1;
-    this.expandedPublisher = null;
-  }
-
   protected resetPagination(): void {
-    this.page = 1;
+    this.selectedGroup = '';
     this.expandedPublisher = null;
   }
 
