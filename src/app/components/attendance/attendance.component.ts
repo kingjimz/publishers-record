@@ -5,7 +5,6 @@ import {
   AttendanceMeetingRecord,
   SupabaseService,
 } from '../../services/supabase.service';
-import { ServiceYearSelectorComponent } from '../service-year-selector/service-year-selector.component';
 import { ToastService } from '../../services/toast.service';
 
 type AttendanceMonthSummary = {
@@ -18,7 +17,7 @@ type MeetingType = 'midweek' | 'weekend';
 @Component({
   selector: 'app-attendance',
   standalone: true,
-  imports: [CommonModule, FormsModule, ServiceYearSelectorComponent],
+  imports: [CommonModule, FormsModule],
   templateUrl: './attendance.component.html',
   styleUrl: './attendance.component.css',
 })
@@ -29,6 +28,22 @@ export class AttendanceComponent implements OnInit {
   protected meetingDate = '';
   protected meetingType: MeetingType = 'midweek';
   protected attendanceCount: number | null = null;
+  protected selectedMonth = this.currentMonthName();
+  protected selectedYear = this.currentYear();
+  protected readonly monthOptions = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
 
   protected loading = false;
   protected submitting = false;
@@ -44,10 +59,6 @@ export class AttendanceComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     await this.loadAttendanceForYear(this.supabase.serviceYear());
-  }
-
-  protected async onYearChanged(serviceYear: number): Promise<void> {
-    await this.loadAttendanceForYear(serviceYear);
   }
 
   protected async onSaveMeetings(): Promise<void> {
@@ -73,6 +84,8 @@ export class AttendanceComponent implements OnInit {
     this.cdr.detectChanges();
 
     try {
+      const targetMonthName = this.monthNameFromDate(this.meetingDate);
+      const targetYear = new Date(`${this.meetingDate}T00:00:00`).getFullYear();
       const wasEditing = this.editingId !== null;
       if (this.editingId) {
         const updated = await this.supabase.updateAttendanceMeeting(this.editingId, serviceYearStart, {
@@ -94,6 +107,8 @@ export class AttendanceComponent implements OnInit {
       this.resetForm();
       this.meetings = this.sortMeetingsByDate(this.meetings);
       this.monthSummaries = this.buildMonthSummaries(this.meetings);
+      this.selectedMonth = targetMonthName;
+      this.selectedYear = targetYear;
       this.toast.showSuccess(wasEditing ? 'Meeting attendance updated.' : 'Meeting attendance saved.');
     } catch (err) {
       this.toast.showError(err instanceof Error ? err.message : 'Failed to save meeting attendance.');
@@ -179,29 +194,44 @@ export class AttendanceComponent implements OnInit {
   }
 
   protected get totalMeetings(): number {
-    return this.meetings.length;
+    return this.filteredMeetings.length;
   }
 
   protected get totalMidweekMeetings(): number {
-    return this.meetings.filter((m) => m.meeting_type === 'midweek').length;
+    return this.filteredMeetings.filter((m) => m.meeting_type === 'midweek').length;
   }
 
   protected get totalWeekendMeetings(): number {
-    return this.meetings.filter((m) => m.meeting_type === 'weekend').length;
+    return this.filteredMeetings.filter((m) => m.meeting_type === 'weekend').length;
   }
 
   protected get averageMidweekAttendance(): number {
-    const values = this.meetings
+    const values = this.filteredMeetings
       .filter((m) => m.meeting_type === 'midweek')
       .map((m) => m.attendance);
     return this.calculateAverage(values);
   }
 
   protected get averageWeekendAttendance(): number {
-    const values = this.meetings
+    const values = this.filteredMeetings
       .filter((m) => m.meeting_type === 'weekend')
       .map((m) => m.attendance);
     return this.calculateAverage(values);
+  }
+
+  protected get filteredMeetings(): AttendanceMeetingRecord[] {
+    return this.meetings.filter((m) => {
+      const d = new Date(`${m.meeting_date}T00:00:00`);
+      if (Number.isNaN(d.getTime())) return false;
+      const month = d.toLocaleString('en-US', { month: 'long' });
+      const year = d.getFullYear();
+      return month === this.selectedMonth && year === this.selectedYear;
+    });
+  }
+
+  protected get yearOptions(): number[] {
+    const serviceYearStart = this.supabase.serviceYear();
+    return [serviceYearStart, serviceYearStart + 1];
   }
 
   protected formatMeetingDate(isoDate: string): string {
@@ -286,6 +316,14 @@ export class AttendanceComponent implements OnInit {
   private monthNameFromDate(isoDate: string): string {
     const d = new Date(`${isoDate}T00:00:00`);
     return d.toLocaleString('en-US', { month: 'long' });
+  }
+
+  private currentMonthName(): string {
+    return new Date().toLocaleString('en-US', { month: 'long' });
+  }
+
+  private currentYear(): number {
+    return new Date().getFullYear();
   }
 
   private serviceYearForDate(isoDate: string): number {

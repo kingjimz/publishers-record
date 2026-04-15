@@ -31,8 +31,29 @@
     </div>
   </div>
 
-  <div class="flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 bg-white shadow-sm p-4">
-    <app-service-year-selector (yearChanged)="onYearChanged($event)" />
+  <div class="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white shadow-sm p-4">
+    <label class="flex items-center gap-2">
+      <span class="text-sm font-medium text-slate-700">Month</span>
+      <select
+        [(ngModel)]="selectedMonth"
+        name="selectedMonth"
+        class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none">
+        @for (m of monthOptions; track m) {
+          <option [value]="m">{{ m }}</option>
+        }
+      </select>
+    </label>
+    <label class="flex items-center gap-2">
+      <span class="text-sm font-medium text-slate-700">Year</span>
+      <select
+        [(ngModel)]="selectedYear"
+        name="selectedYear"
+        class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none">
+        @for (y of yearOptions; track y) {
+          <option [ngValue]="y">{{ y }}</option>
+        }
+      </select>
+    </label>
     @if (loading) {
       <span class="text-sm text-slate-400">Loading attendance...</span>
     }
@@ -104,7 +125,7 @@
 
   <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
     <div class="px-4 py-3 border-b border-slate-200 bg-slate-50">
-      <h3 class="text-sm font-semibold text-slate-700">Meeting Entries (Current Service Year)</h3>
+      <h3 class="text-sm font-semibold text-slate-700">Meeting Entries ({{ selectedMonth }} {{ selectedYear }})</h3>
     </div>
     <div class="overflow-x-auto max-h-[420px]">
       <table class="min-w-full">
@@ -117,12 +138,12 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
-          @if (meetings.length === 0) {
+          @if (filteredMeetings.length === 0) {
             <tr>
-              <td colspan="4" class="px-4 py-4 text-sm text-slate-400 text-center">No meeting attendance entries yet.</td>
+              <td colspan="4" class="px-4 py-4 text-sm text-slate-400 text-center">No meeting attendance entries for {{ selectedMonth }} {{ selectedYear }} yet.</td>
             </tr>
           } @else {
-            @for (row of meetings; track row.id) {
+            @for (row of filteredMeetings; track row.id) {
               <tr class="hover:bg-slate-50/70 transition-colors">
                 <td class="px-4 py-3 text-sm text-slate-700">{{ formatMeetingDate(row.meeting_date) }}</td>
                 <td class="px-4 py-3 text-sm">
