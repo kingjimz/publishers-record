@@ -7,9 +7,9 @@
     </p>
     <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
       @if (supabase.isAuthenticated()) {
-        <a routerLink="/dashboard"
+        <a routerLink="/"
           class="w-full sm:w-auto px-5 py-2.5 text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 rounded-lg text-center transition-colors">
-          Go to dashboard
+          Go to modules
         </a>
       } @else {
         <a routerLink="/login"

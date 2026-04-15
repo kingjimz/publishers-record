@@ -34,6 +34,15 @@ export interface PublisherRecord {
 }
 
 const RECORDS_CACHE_PREFIX = 'records:';
+const ATTENDANCE_MEETINGS_CACHE_PREFIX = 'attendance-meetings:';
+
+export interface AttendanceMeetingRecord {
+  id: string;
+  service_year_start: number;
+  meeting_date: string;
+  meeting_type: 'midweek' | 'weekend';
+  attendance: number;
+}
 
 @Injectable({ providedIn: 'root' })
 export class SupabaseService {
@@ -311,6 +320,91 @@ export class SupabaseService {
     return toCopy.length;
   }
 
+  /**
+   * Returns per-meeting attendance rows for a service year.
+   */
+  public async getAttendanceMeetingsByServiceYear(
+    serviceYearStart: number
+  ): Promise<AttendanceMeetingRecord[]> {
+    if (!this.client) throw new Error('Supabase client not configured.');
+    // Attendance is frequently edited in-session; read fresh rows to avoid stale UI.
+    return this.fetchAttendanceMeetingsFromSupabase(serviceYearStart);
+  }
+
+  /**
+   * Inserts one attendance meeting row.
+   */
+  public async insertAttendanceMeeting(
+    row: Omit<AttendanceMeetingRecord, 'id'>
+  ): Promise<AttendanceMeetingRecord> {
+    if (!this.client) throw new Error('Supabase client not configured.');
+
+    const { data, error } = await this.client
+      .from('attendance_meetings')
+      .insert(row)
+      .select('id, service_year_start, meeting_date, meeting_type, attendance')
+      .single();
+
+    if (error) throw error;
+
+    const cacheKey = `${ATTENDANCE_MEETINGS_CACHE_PREFIX}${row.service_year_start}`;
+    this.cache.invalidate(cacheKey);
+    const fresh = await this.fetchAttendanceMeetingsFromSupabase(row.service_year_start);
+    this.cache.set(cacheKey, fresh);
+
+    return data as AttendanceMeetingRecord;
+  }
+
+  /**
+   * Updates one attendance meeting row by id and refreshes cache.
+   */
+  public async updateAttendanceMeeting(
+    id: string,
+    serviceYearStart: number,
+    updates: Pick<AttendanceMeetingRecord, 'meeting_date' | 'meeting_type' | 'attendance'>
+  ): Promise<AttendanceMeetingRecord> {
+    if (!this.client) throw new Error('Supabase client not configured.');
+
+    const { data, error } = await this.client
+      .from('attendance_meetings')
+      .update({
+        meeting_date: updates.meeting_date,
+        meeting_type: updates.meeting_type,
+        attendance: updates.attendance,
+      })
+      .eq('id', id)
+      .select('id, service_year_start, meeting_date, meeting_type, attendance')
+      .single();
+
+    if (error) throw error;
+
+    const cacheKey = `${ATTENDANCE_MEETINGS_CACHE_PREFIX}${serviceYearStart}`;
+    this.cache.invalidate(cacheKey);
+    const fresh = await this.fetchAttendanceMeetingsFromSupabase(serviceYearStart);
+    this.cache.set(cacheKey, fresh);
+
+    return data as AttendanceMeetingRecord;
+  }
+
+  /**
+   * Deletes one attendance meeting row by id and refreshes cache.
+   */
+  public async deleteAttendanceMeeting(id: string, serviceYearStart: number): Promise<void> {
+    if (!this.client) throw new Error('Supabase client not configured.');
+
+    const { error } = await this.client
+      .from('attendance_meetings')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    const cacheKey = `${ATTENDANCE_MEETINGS_CACHE_PREFIX}${serviceYearStart}`;
+    this.cache.invalidate(cacheKey);
+    const fresh = await this.fetchAttendanceMeetingsFromSupabase(serviceYearStart);
+    this.cache.set(cacheKey, fresh);
+  }
+
   private async fetchRecordsFromSupabase(serviceYearStart: number): Promise<PublisherRecord[]> {
     const { data, error } = await this.client!
       .from('publisher_records')
@@ -320,5 +414,18 @@ export class SupabaseService {
 
     if (error) throw error;
     return (data ?? []) as PublisherRecord[];
+  }
+
+  private async fetchAttendanceMeetingsFromSupabase(
+    serviceYearStart: number
+  ): Promise<AttendanceMeetingRecord[]> {
+    const { data, error } = await this.client!
+      .from('attendance_meetings')
+      .select('id, service_year_start, meeting_date, meeting_type, attendance')
+      .eq('service_year_start', serviceYearStart)
+      .order('meeting_date', { ascending: true });
+
+    if (error) throw error;
+    return (data ?? []) as AttendanceMeetingRecord[];
   }
 }

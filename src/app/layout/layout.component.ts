@@ -32,6 +32,7 @@ export class LayoutComponent implements OnInit {
    * outlet activates between dev-mode CD checks (direct `routeAnimation(outlet)` reads).
    */
   protected readonly routeAnimKey = signal('');
+  protected readonly currentToolLabel = signal('Publishers Record');
 
   headerMenuOpen = false;
 
@@ -45,6 +46,7 @@ export class LayoutComponent implements OnInit {
       )
       .subscribe(() => {
         this.routeAnimKey.set(this.animationKeyFromRouter());
+        this.currentToolLabel.set(this.toolLabelFromRouter());
       });
   }
 
@@ -52,6 +54,7 @@ export class LayoutComponent implements OnInit {
     await this.supabase.ensureSession();
     this.onboarding.tryAutoOpen();
     this.routeAnimKey.set(this.animationKeyFromRouter());
+    this.currentToolLabel.set(this.toolLabelFromRouter());
   }
 
   toggleHeaderMenu(): void {
@@ -67,6 +70,14 @@ export class LayoutComponent implements OnInit {
     await this.supabase.signOut();
   }
 
+  protected isPublishersTool(): boolean {
+    return this.currentToolLabel() === 'Publishers Record';
+  }
+
+  protected isAttendanceTool(): boolean {
+    return this.currentToolLabel() === 'Attendance';
+  }
+
   /** Deepest activated route’s `data.animation` (same intent as RouterOutlet.activatedRouteData). */
   private animationKeyFromRouter(): string {
     let route = this.router.routerState.root;
@@ -75,5 +86,14 @@ export class LayoutComponent implements OnInit {
     }
     const key = route.snapshot.data['animation'];
     return typeof key === 'string' ? key : '';
+  }
+
+  private toolLabelFromRouter(): string {
+    let route = this.router.routerState.root;
+    while (route.firstChild) {
+      route = route.firstChild;
+    }
+    const tool = route.snapshot.data['tool'];
+    return tool === 'attendance' ? 'Attendance Tracker' : 'Publishers Record';
   }
 }

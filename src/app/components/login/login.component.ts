@@ -27,7 +27,7 @@ export class LoginComponent implements OnInit {
 
   ngOnInit(): void {
     if (this.supabase.isAuthenticated()) {
-      this.router.navigate(['/dashboard']);
+      this.router.navigate(['/']);
     }
   }
 
@@ -58,7 +58,7 @@ export class LoginComponent implements OnInit {
         return;
       }
 
-      await this.router.navigate(['/dashboard']);
+      await this.router.navigate(['/']);
     } catch (err) {
       this.toast.showError(err instanceof Error ? err.message : 'Login failed unexpectedly.');
     } finally {

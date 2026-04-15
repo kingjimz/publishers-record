@@ -28,7 +28,7 @@ export class ForgotPasswordComponent implements OnInit {
 
   ngOnInit(): void {
     if (this.supabase.isAuthenticated()) {
-      void this.router.navigate(['/dashboard']);
+      void this.router.navigate(['/']);
     }
   }
 
