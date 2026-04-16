@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 
 import {
   PublisherMonthlyRecord,
+  PublisherPioneerProfile,
   PublisherRecord,
   SupabaseService,
 } from '../../services/supabase.service';
@@ -39,14 +40,24 @@ export class AddRecordsComponent implements OnInit {
   protected publisherGroup = '';
   protected dateOfBirth = '';
   protected dateOfBaptism = '';
+  protected unbaptizedApprovedOn = '';
   protected gender: 'male' | 'female' | 'other' | '' = '';
   protected otherSheep = false;
   protected anointed = false;
+  protected unbaptizedPublisher = false;
   protected elder = false;
   protected ministerialServant = false;
   protected regularPioneer = false;
   protected specialPioneer = false;
   protected fieldMissionary = false;
+  protected showPioneerDates = false;
+  /** Multiple auxiliary stints (e.g. Sep–Apr, then approved again later in the service year). */
+  protected auxiliaryPeriods: { approvedOn: string; endedOn: string }[] = [
+    { approvedOn: '', endedOn: '' },
+  ];
+  protected regularPioneerPeriods: { approvedOn: string; stoppedOn: string }[] = [
+    { approvedOn: '', stoppedOn: '' },
+  ];
   protected monthlyRecords: PublisherMonthlyRecord[] = this.createDefaultMonths();
   protected yearRecords: PublisherRecord[] = [];
   /** Filters the right-hand publisher list (name contains, case-insensitive). */
@@ -122,14 +133,61 @@ export class AddRecordsComponent implements OnInit {
     }
   }
 
-  protected onEditRecord(record: PublisherRecord): void {
+  protected addAuxiliaryPeriodRow(): void {
+    this.auxiliaryPeriods = [...this.auxiliaryPeriods, { approvedOn: '', endedOn: '' }];
+    this.cdr.markForCheck();
+  }
+
+  protected removeAuxiliaryPeriodRow(index: number): void {
+    this.pendingPioneerRemoval = { type: 'auxiliary', index };
+    this.cdr.markForCheck();
+  }
+
+  protected removeRegularPioneerPeriodRow(index: number): void {
+    this.pendingPioneerRemoval = { type: 'regular', index };
+    this.cdr.markForCheck();
+  }
+
+  protected pendingPioneerRemoval: { type: 'auxiliary' | 'regular'; index: number } | null = null;
+
+  protected cancelPioneerPeriodRemoval(): void {
+    this.pendingPioneerRemoval = null;
+    this.cdr.markForCheck();
+  }
+
+  protected confirmPioneerPeriodRemoval(): void {
+    const pending = this.pendingPioneerRemoval;
+    if (!pending) return;
+    if (pending.type === 'auxiliary') {
+      this.auxiliaryPeriods = this.auxiliaryPeriods.filter((_, i) => i !== pending.index);
+      if (this.auxiliaryPeriods.length === 0) {
+        this.auxiliaryPeriods = [{ approvedOn: '', endedOn: '' }];
+      }
+    } else {
+      this.regularPioneerPeriods = this.regularPioneerPeriods.filter((_, i) => i !== pending.index);
+      if (this.regularPioneerPeriods.length === 0) {
+        this.regularPioneerPeriods = [{ approvedOn: '', stoppedOn: '' }];
+      }
+    }
+    this.pendingPioneerRemoval = null;
+    this.cdr.markForCheck();
+  }
+
+  protected addRegularPioneerPeriodRow(): void {
+    this.regularPioneerPeriods = [...this.regularPioneerPeriods, { approvedOn: '', stoppedOn: '' }];
+    this.cdr.markForCheck();
+  }
+
+  protected async onEditRecord(record: PublisherRecord): Promise<void> {
     this.publisherName = record.publisher_name;
     this.publisherGroup = this.normalizePublisherGroup(record.publisher_group ?? '');
     this.dateOfBirth = record.date_of_birth ?? '';
     this.dateOfBaptism = record.date_of_baptism ?? '';
+    this.unbaptizedApprovedOn = record.unbaptized_approved_on ?? '';
     this.gender = record.gender ?? '';
     this.otherSheep = record.other_sheep;
     this.anointed = record.anointed;
+    this.unbaptizedPublisher = !!record.unbaptized_publisher;
     this.elder = record.elder;
     this.ministerialServant = record.ministerial_servant;
     this.regularPioneer = record.regular_pioneer;
@@ -150,6 +208,7 @@ export class AddRecordsComponent implements OnInit {
           }
         : month;
     });
+    await this.loadPioneerProfileForPublisher(record.publisher_name);
     this.toast.showSuccess(`Opened: ${record.publisher_name}`);
     this.captureEditBaseline();
     this.cdr.detectChanges();
@@ -158,6 +217,32 @@ export class AddRecordsComponent implements OnInit {
   /** Keeps Save button state in sync under zoneless change detection. */
   protected onFormInteraction(): void {
     this.cdr.markForCheck();
+  }
+
+  protected formatHumanDate(dateStr: string | null | undefined): string {
+    if (!dateStr) return '';
+    const raw = String(dateStr).trim();
+    const datePart = raw.length >= 10 ? raw.slice(0, 10) : raw;
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(datePart);
+    if (!match) return raw;
+
+    const year = match[1];
+    const month = Number(match[2]);
+    const dayPadded = match[3];
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    if (month < 1 || month > 12) return raw;
+    return `${monthNames[month - 1]} ${dayPadded}, ${year}`;
+  }
+
+  protected openDatePicker(input: HTMLInputElement): void {
+    if (typeof input.showPicker === 'function') {
+      input.showPicker();
+    } else {
+      input.click();
+    }
   }
 
   /**
@@ -197,6 +282,7 @@ export class AddRecordsComponent implements OnInit {
       const payload = this.buildSavePayload();
 
       await this.supabase.upsertPublisherRecord(payload);
+      await this.supabase.upsertPublisherPioneerProfile(this.buildPioneerProfilePayload());
       await this.loadRecordsForYear();
       this.onResetForm();
       this.toast.showSuccess(`Record saved for ${payload.publisher_name}.`);
@@ -211,6 +297,11 @@ export class AddRecordsComponent implements OnInit {
   protected onCancelEdit(): void {
     if (!this.hasSelectedPublisher) return;
     this.onResetForm();
+  }
+
+  protected togglePioneerDates(): void {
+    this.showPioneerDates = !this.showPioneerDates;
+    this.cdr.markForCheck();
   }
 
   protected confirmingDelete: string | null = null;
@@ -249,14 +340,19 @@ export class AddRecordsComponent implements OnInit {
     this.publisherGroup = '';
     this.dateOfBirth = '';
     this.dateOfBaptism = '';
+    this.unbaptizedApprovedOn = '';
     this.gender = '';
     this.otherSheep = false;
     this.anointed = false;
+    this.unbaptizedPublisher = false;
     this.elder = false;
     this.ministerialServant = false;
     this.regularPioneer = false;
     this.specialPioneer = false;
     this.fieldMissionary = false;
+    this.showPioneerDates = false;
+    this.auxiliaryPeriods = [{ approvedOn: '', endedOn: '' }];
+    this.regularPioneerPeriods = [{ approvedOn: '', stoppedOn: '' }];
     this.monthlyRecords = this.createDefaultMonths();
     this.editBaselineJson = null;
     this.toast.dismiss();
@@ -288,6 +384,8 @@ export class AddRecordsComponent implements OnInit {
       publisher_group: groupTrimmed ? groupTrimmed : null,
       date_of_birth: this.dateOfBirth || null,
       date_of_baptism: this.dateOfBaptism || null,
+      unbaptized_publisher: this.unbaptizedPublisher,
+      unbaptized_approved_on: this.unbaptizedApprovedOn || null,
       gender: this.gender || null,
       other_sheep: this.otherSheep,
       anointed: this.anointed,
@@ -305,6 +403,66 @@ export class AddRecordsComponent implements OnInit {
         remarks: item.remarks?.trim() ?? '',
       })),
     };
+  }
+
+  private buildPioneerProfilePayload(): PublisherPioneerProfile {
+    const publisherName = this.publisherName.trim();
+    const periods = this.auxiliaryPeriods
+      .map((p) => ({
+        approved_on: p.approvedOn.trim() || null,
+        ended_on: p.endedOn.trim() || null,
+      }))
+      .filter((p) => p.approved_on != null || p.ended_on != null);
+    const regularPeriods = this.regularPioneerPeriods
+      .map((p) => ({
+        approved_on: p.approvedOn.trim() || null,
+        stopped_on: p.stoppedOn.trim() || null,
+      }))
+      .filter((p) => p.approved_on != null || p.stopped_on != null);
+    return {
+      publisher_name: publisherName,
+      auxiliary_pioneer_periods: periods,
+      regular_pioneer_periods: regularPeriods,
+    };
+  }
+
+  private async loadPioneerProfileForPublisher(publisherName: string): Promise<void> {
+    const toInputDate = (v: string | null | undefined): string => {
+      if (v == null || v === '') return '';
+      const t = String(v).trim();
+      return t.length >= 10 ? t.slice(0, 10) : t;
+    };
+    try {
+      const prof = await this.supabase.getPioneerProfileByPublisherName(publisherName.trim());
+      const periods = prof?.auxiliary_pioneer_periods ?? [];
+      this.auxiliaryPeriods =
+        periods.length > 0
+          ? periods.map((p) => ({
+              approvedOn: toInputDate(p.approved_on),
+              endedOn: toInputDate(p.ended_on),
+            }))
+          : [{ approvedOn: '', endedOn: '' }];
+      const regularPeriods = prof?.regular_pioneer_periods ?? [];
+      this.regularPioneerPeriods =
+        regularPeriods.length > 0
+          ? regularPeriods.map((p) => ({
+              approvedOn: toInputDate(p.approved_on),
+              stoppedOn: toInputDate(p.stopped_on),
+            }))
+          : [{ approvedOn: '', stoppedOn: '' }];
+      this.showPioneerDates = this.hasAnyPioneerDateData();
+    } catch {
+      this.auxiliaryPeriods = [{ approvedOn: '', endedOn: '' }];
+      this.regularPioneerPeriods = [{ approvedOn: '', stoppedOn: '' }];
+      this.showPioneerDates = false;
+    }
+  }
+
+  private hasAnyPioneerDateData(): boolean {
+    if (this.regularPioneerPeriods.some((p) => p.approvedOn.trim() || p.stoppedOn.trim())) {
+      return true;
+    }
+    return this.auxiliaryPeriods.some((p) => p.approvedOn.trim() || p.endedOn.trim());
   }
 
   private coerceNullableNumber(value: unknown): number | null {
@@ -326,6 +484,8 @@ export class AddRecordsComponent implements OnInit {
       })(),
       date_of_birth: r.date_of_birth ?? null,
       date_of_baptism: r.date_of_baptism ?? null,
+      unbaptized_publisher: !!r.unbaptized_publisher,
+      unbaptized_approved_on: r.unbaptized_approved_on ?? null,
       gender: r.gender ?? null,
       other_sheep: !!r.other_sheep,
       anointed: !!r.anointed,
@@ -350,8 +510,24 @@ export class AddRecordsComponent implements OnInit {
     return JSON.stringify(normalized);
   }
 
+  private pioneerStateFingerprint(): string {
+    return JSON.stringify({
+      auxiliaryPeriods: this.auxiliaryPeriods.map((p) => ({
+        approvedOn: p.approvedOn.trim() || null,
+        endedOn: p.endedOn.trim() || null,
+      })),
+      regularPioneerPeriods: this.regularPioneerPeriods.map((p) => ({
+        approvedOn: p.approvedOn.trim() || null,
+        stoppedOn: p.stoppedOn.trim() || null,
+      })),
+    });
+  }
+
   private currentPayloadFingerprint(): string {
-    return this.normalizeRecordFingerprint(this.buildSavePayload());
+    return JSON.stringify({
+      record: this.normalizeRecordFingerprint(this.buildSavePayload()),
+      pioneer: this.pioneerStateFingerprint(),
+    });
   }
 
   private captureEditBaseline(): void {
@@ -383,4 +559,5 @@ export class AddRecordsComponent implements OnInit {
       remarks: '',
     }));
   }
+
 }

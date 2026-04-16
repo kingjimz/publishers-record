@@ -77,15 +77,51 @@
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Date of birth</label>
-            <input type="date"
-              class="w-full px-3 py-2 border border-slate-200 bg-white text-slate-900 rounded-lg focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
-              [(ngModel)]="dateOfBirth" name="dateOfBirth" />
+            <div class="flex items-center gap-2">
+              <input type="text"
+                class="w-full px-3 py-2 border border-slate-200 bg-white text-slate-900 rounded-lg"
+                [value]="dateOfBirth ? formatHumanDate(dateOfBirth) : ''"
+                placeholder="Select a date"
+                readonly />
+              <input #dateOfBirthPicker type="date" class="sr-only"
+                [(ngModel)]="dateOfBirth" name="dateOfBirth" />
+              <button type="button"
+                class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                (click)="openDatePicker(dateOfBirthPicker)"
+                aria-label="Open date of birth picker">📅</button>
+            </div>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Date of baptism</label>
-            <input type="date"
-              class="w-full px-3 py-2 border border-slate-200 bg-white text-slate-900 rounded-lg focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
-              [(ngModel)]="dateOfBaptism" name="dateOfBaptism" />
+            <div class="flex items-center gap-2">
+              <input type="text"
+                class="w-full px-3 py-2 border border-slate-200 bg-white text-slate-900 rounded-lg"
+                [value]="dateOfBaptism ? formatHumanDate(dateOfBaptism) : ''"
+                placeholder="Select a date"
+                readonly />
+              <input #dateOfBaptismPicker type="date" class="sr-only"
+                [(ngModel)]="dateOfBaptism" name="dateOfBaptism" />
+              <button type="button"
+                class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                (click)="openDatePicker(dateOfBaptismPicker)"
+                aria-label="Open date of baptism picker">📅</button>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Unbaptized approved on</label>
+            <div class="flex items-center gap-2">
+              <input type="text"
+                class="w-full px-3 py-2 border border-slate-200 bg-white text-slate-900 rounded-lg"
+                [value]="unbaptizedApprovedOn ? formatHumanDate(unbaptizedApprovedOn) : ''"
+                placeholder="Select a date"
+                readonly />
+              <input #unbaptizedApprovedPicker type="date" class="sr-only"
+                [(ngModel)]="unbaptizedApprovedOn" name="unbaptizedApprovedOn" />
+              <button type="button"
+                class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                (click)="openDatePicker(unbaptizedApprovedPicker)"
+                aria-label="Open unbaptized approved date picker">📅</button>
+            </div>
           </div>
         </div>
 
@@ -125,6 +161,145 @@
             <input type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" [(ngModel)]="fieldMissionary" name="fieldMissionary" />
             Field missionary
           </label>
+          <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" [(ngModel)]="unbaptizedPublisher" name="unbaptizedPublisher" />
+            Unbaptized publisher
+          </label>
+        </div>
+
+        <div class="mb-6 rounded-lg border border-slate-200 bg-slate-50/40">
+          <button type="button"
+            class="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors rounded-lg"
+            (click)="togglePioneerDates()"
+            [attr.aria-expanded]="showPioneerDates">
+            <div>
+              <h3 class="text-sm font-medium text-gray-700">Pioneer dates (optional)</h3>
+              <p class="text-xs text-gray-500 mt-1">
+                Stored once per publisher and shared across all service years.
+              </p>
+            </div>
+            <span class="text-slate-500 text-xs">{{ showPioneerDates ? 'Hide' : 'Show' }}</span>
+          </button>
+
+          @if (showPioneerDates) {
+            <div class="px-4 pb-4 border-t border-slate-200">
+              <p class="text-xs text-gray-500 mb-3 mt-3 max-w-3xl">
+                Track when auxiliary or regular pioneer status was approved or ended. For auxiliary, add another row if the publisher is approved again after an earlier stint ends (even in the same service year).
+              </p>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                <div class="rounded-lg border border-slate-200 bg-slate-50/60 p-4 space-y-3">
+                  <p class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Auxiliary pioneer</p>
+                  @for (ap of auxiliaryPeriods; track $index) {
+                    <div class="rounded-md border border-slate-200/80 bg-white/70 p-3 space-y-2">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="text-xs font-medium text-slate-600">Period {{ $index + 1 }}</span>
+                        <button type="button"
+                          class="text-xs text-red-600 hover:text-red-700 font-medium"
+                          (click)="removeAuxiliaryPeriodRow($index)">Remove</button>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Approved on</label>
+                        <div class="flex items-center gap-2">
+                          <input type="text"
+                            class="w-full px-3 py-2 border border-slate-200 bg-white text-slate-900 rounded-lg"
+                            [value]="ap.approvedOn ? formatHumanDate(ap.approvedOn) : ''"
+                            placeholder="Select a date"
+                            readonly />
+                          <input #auxApprovedPicker type="date" class="sr-only"
+                            [(ngModel)]="ap.approvedOn" [name]="'auxApproved' + $index" />
+                          <button type="button"
+                            class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                            (click)="openDatePicker(auxApprovedPicker)"
+                            aria-label="Open approved date picker">📅</button>
+                        </div>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Stopped on</label>
+                        <div class="flex items-center gap-2">
+                          <input type="text"
+                            class="w-full px-3 py-2 border border-slate-200 bg-white text-slate-900 rounded-lg"
+                            [value]="ap.endedOn ? formatHumanDate(ap.endedOn) : ''"
+                            placeholder="Select a date"
+                            readonly />
+                          <input #auxEndedPicker type="date" class="sr-only"
+                            [(ngModel)]="ap.endedOn" [name]="'auxEnded' + $index" />
+                          <button type="button"
+                            class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                            (click)="openDatePicker(auxEndedPicker)"
+                            aria-label="Open stopped date picker">📅</button>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                  <button type="button"
+                    class="w-full sm:w-auto px-3 py-2 rounded-lg text-xs font-medium border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
+                    (click)="addAuxiliaryPeriodRow()">
+                    Add Pioneering Date
+                  </button>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-slate-50/60 p-4 space-y-3">
+                  <p class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Regular pioneer</p>
+                  @for (rp of regularPioneerPeriods; track $index) {
+                    <div class="rounded-md border border-slate-200/80 bg-white/70 p-3 space-y-2">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="text-xs font-medium text-slate-600">Period {{ $index + 1 }}</span>
+                        <button type="button"
+                          class="text-xs text-red-600 hover:text-red-700 font-medium"
+                          (click)="removeRegularPioneerPeriodRow($index)">Remove</button>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Approved on</label>
+                        <div class="flex items-center gap-2">
+                          <input type="text"
+                            class="w-full px-3 py-2 border border-slate-200 bg-white text-slate-900 rounded-lg"
+                            [value]="rp.approvedOn ? formatHumanDate(rp.approvedOn) : ''"
+                            placeholder="Select a date"
+                            readonly />
+                          <input #regApprovedPicker type="date" class="sr-only"
+                            [(ngModel)]="rp.approvedOn" [name]="'regApproved' + $index" />
+                          <button type="button"
+                            class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                            (click)="openDatePicker(regApprovedPicker)"
+                            aria-label="Open approved date picker">📅</button>
+                        </div>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Stopped on</label>
+                        <div class="flex items-center gap-2">
+                          <input type="text"
+                            class="w-full px-3 py-2 border border-slate-200 bg-white text-slate-900 rounded-lg"
+                            [value]="rp.stoppedOn ? formatHumanDate(rp.stoppedOn) : ''"
+                            placeholder="Select a date"
+                            readonly />
+                          <input #regStoppedPicker type="date" class="sr-only"
+                            [(ngModel)]="rp.stoppedOn" [name]="'regStopped' + $index" />
+                          <button type="button"
+                            class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                            (click)="openDatePicker(regStoppedPicker)"
+                            aria-label="Open stopped date picker">📅</button>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                  <button type="button"
+                    class="w-full sm:w-auto px-3 py-2 rounded-lg text-xs font-medium border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
+                    (click)="addRegularPioneerPeriodRow()">
+                    Add Pioneering Date
+                  </button>
+                </div>
+              </div>
+              <div class="mt-4 pt-3 border-t border-slate-200 flex justify-end">
+                <button type="button"
+                  class="btn btn-primary px-4 py-2 rounded-lg text-sm font-medium"
+                  [disabled]="isSaveDisabled()"
+                  [attr.aria-disabled]="isSaveDisabled()"
+                  [title]="isSaveDisabled() && !saving && !recordsLoading && !copying ? (publisherName.trim() ? 'Change something to save.' : 'Enter a publisher name to save.') : null"
+                  (click)="onSaveRecord()">
+                  {{ saving ? 'Saving...' : 'Save pioneer dates' }}
+                </button>
+              </div>
+            </div>
+          }
         </div>
 
         <!-- Monthly records table -->
@@ -278,3 +453,30 @@
     </aside>
   </div>
 </div>
+
+@if (pendingPioneerRemoval) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-[1px]"
+    role="dialog"
+    aria-modal="true"
+    (click)="cancelPioneerPeriodRemoval()">
+    <div class="w-full max-w-sm bg-white rounded-xl border border-slate-200 shadow-xl p-4"
+      (click)="$event.stopPropagation()">
+      <h3 class="text-base font-semibold text-slate-900">Remove period?</h3>
+      <p class="text-sm text-slate-500 mt-1">
+        This period will be removed from the form.
+      </p>
+      <div class="mt-4 flex items-center justify-end gap-2">
+        <button type="button"
+          class="px-3 py-2 rounded-lg text-sm font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-colors"
+          (click)="cancelPioneerPeriodRemoval()">
+          Cancel
+        </button>
+        <button type="button"
+          class="px-3 py-2 rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors"
+          (click)="confirmPioneerPeriodRemoval()">
+          Remove
+        </button>
+      </div>
+    </div>
+  </div>
+}

@@ -20,6 +20,8 @@ export interface PublisherRecord {
   publisher_name: string;
   date_of_birth: string | null;
   date_of_baptism: string | null;
+  unbaptized_publisher: boolean;
+  unbaptized_approved_on: string | null;
   gender: 'male' | 'female' | 'other' | null;
   other_sheep: boolean;
   anointed: boolean;
@@ -33,7 +35,100 @@ export interface PublisherRecord {
   months: PublisherMonthlyRecord[];
 }
 
+/** One auxiliary pioneer stint (approved / ended); a publisher may have several per service year or over time. */
+export interface AuxiliaryPioneerPeriod {
+  approved_on: string | null;
+  ended_on: string | null;
+}
+
+/** One regular pioneer stint (approved / stopped); an open stint has stopped_on = null. */
+export interface RegularPioneerPeriod {
+  approved_on: string | null;
+  stopped_on: string | null;
+}
+
+/** Pioneer milestone dates stored once per publisher (table `publisher_pioneer_profiles`). */
+export interface PublisherPioneerProfile {
+  publisher_name: string;
+  auxiliary_pioneer_periods: AuxiliaryPioneerPeriod[];
+  regular_pioneer_periods: RegularPioneerPeriod[];
+}
+
+/** Normalizes a row from Supabase (JSON periods, date strings). */
+export function normalizePublisherPioneerProfile(
+  data: PublisherPioneerProfile | null | undefined
+): PublisherPioneerProfile | null {
+  if (!data) return null;
+  const raw = (data as unknown as { auxiliary_pioneer_periods?: unknown }).auxiliary_pioneer_periods;
+  const rawRegular = (data as unknown as { regular_pioneer_periods?: unknown }).regular_pioneer_periods;
+  const legacyRegularApproved = (data as unknown as { regular_pioneer_approved_on?: unknown }).regular_pioneer_approved_on;
+  const legacyRegularStopped = (data as unknown as { regular_pioneer_stopped_on?: unknown }).regular_pioneer_stopped_on;
+  const periods: AuxiliaryPioneerPeriod[] = [];
+  const regularPeriods: RegularPioneerPeriod[] = [];
+  if (Array.isArray(raw)) {
+    for (const p of raw) {
+      const o = p as Record<string, unknown>;
+      const a = o['approved_on'];
+      const e = o['ended_on'];
+      periods.push({
+        approved_on:
+          a != null && String(a).trim() !== ''
+            ? String(a).trim().slice(0, 10)
+            : null,
+        ended_on:
+          e != null && String(e).trim() !== ''
+            ? String(e).trim().slice(0, 10)
+            : null,
+      });
+    }
+  }
+  if (Array.isArray(rawRegular)) {
+    for (const p of rawRegular) {
+      const o = p as Record<string, unknown>;
+      const a = o['approved_on'];
+      const s = o['stopped_on'];
+      regularPeriods.push({
+        approved_on:
+          a != null && String(a).trim() !== ''
+            ? String(a).trim().slice(0, 10)
+            : null,
+        stopped_on:
+          s != null && String(s).trim() !== ''
+            ? String(s).trim().slice(0, 10)
+            : null,
+      });
+    }
+  } else {
+    // Backward compatibility: fold old single regular dates into one period.
+    const approved =
+      legacyRegularApproved != null && String(legacyRegularApproved).trim() !== ''
+        ? String(legacyRegularApproved).trim().slice(0, 10)
+        : null;
+    const stopped =
+      legacyRegularStopped != null && String(legacyRegularStopped).trim() !== ''
+        ? String(legacyRegularStopped).trim().slice(0, 10)
+        : null;
+    if (approved != null || stopped != null) {
+      regularPeriods.push({ approved_on: approved, stopped_on: stopped });
+    }
+  }
+  return {
+    publisher_name: data.publisher_name,
+    auxiliary_pioneer_periods: periods,
+    regular_pioneer_periods: regularPeriods,
+  };
+}
+
+export function emptyPublisherPioneerProfile(publisherName: string): PublisherPioneerProfile {
+  return {
+    publisher_name: publisherName,
+    auxiliary_pioneer_periods: [],
+    regular_pioneer_periods: [],
+  };
+}
+
 const RECORDS_CACHE_PREFIX = 'records:';
+const PIONEER_PROFILE_CACHE_PREFIX = 'pioneer-profile:';
 const ATTENDANCE_MEETINGS_CACHE_PREFIX = 'attendance-meetings:';
 
 export interface AttendanceMeetingRecord {
@@ -219,6 +314,175 @@ export class SupabaseService {
   }
 
   /**
+   * All publisher card rows for an exact name, every service year (oldest first).
+   * Used for pioneering history; not cached on the per-year records cache.
+   */
+  public async getPublisherRecordsByPublisherNameExact(
+    publisherName: string
+  ): Promise<PublisherRecord[]> {
+    if (!this.client) throw new Error('Supabase client not configured.');
+
+    const name = publisherName.trim();
+    if (!name) return [];
+
+    const { data, error } = await this.client
+      .from('publisher_records')
+      .select('*')
+      .eq('publisher_name', name)
+      .order('service_year_start', { ascending: true });
+
+    if (error) throw error;
+    return (data ?? []) as PublisherRecord[];
+  }
+
+  /**
+   * Loads pioneer milestone dates for one publisher name (cached briefly).
+   * Returns `null` when no profile row exists yet.
+   */
+  public async getPioneerProfileByPublisherName(
+    publisherName: string
+  ): Promise<PublisherPioneerProfile | null> {
+    if (!this.client) throw new Error('Supabase client not configured.');
+
+    const name = publisherName.trim();
+    if (!name) return null;
+
+    const cacheKey = `${PIONEER_PROFILE_CACHE_PREFIX}${name}`;
+    const cached = this.cache.get<PublisherPioneerProfile | null>(cacheKey);
+    if (cached !== undefined) return cached;
+
+    const { data, error } = await this.client
+      .from('publisher_pioneer_profiles')
+      .select('*')
+      .eq('publisher_name', name)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    const result = normalizePublisherPioneerProfile((data as PublisherPioneerProfile | null) ?? null);
+    this.cache.set(cacheKey, result);
+    return result;
+  }
+
+  /**
+   * Loads pioneer profiles for many names in one query. Missing names get
+   * {@link emptyPublisherPioneerProfile} in the returned map (and `null` is cached per name).
+   */
+  public async getPioneerProfilesForPublisherNames(
+    names: string[]
+  ): Promise<Map<string, PublisherPioneerProfile>> {
+    if (!this.client) throw new Error('Supabase client not configured.');
+
+    const unique = [...new Set(names.map((n) => n.trim()).filter((n) => n.length > 0))];
+    const out = new Map<string, PublisherPioneerProfile>();
+    if (unique.length === 0) return out;
+
+    const { data, error } = await this.client
+      .from('publisher_pioneer_profiles')
+      .select('*')
+      .in('publisher_name', unique);
+
+    if (error) throw error;
+
+    const fromDb = new Map(
+      ((data ?? []) as PublisherPioneerProfile[]).map((p) => [p.publisher_name, p])
+    );
+
+    for (const n of unique) {
+      const raw = fromDb.get(n) ?? null;
+      const found = normalizePublisherPioneerProfile(raw);
+      this.cache.set(`${PIONEER_PROFILE_CACHE_PREFIX}${n}`, found);
+      out.set(n, found ?? emptyPublisherPioneerProfile(n));
+    }
+
+    return out;
+  }
+
+  /**
+   * Saves pioneer milestone dates for a publisher. When there are no auxiliary periods
+   * and no regular-pioneer periods, deletes the profile row if it exists.
+   */
+  public async upsertPublisherPioneerProfile(profile: PublisherPioneerProfile): Promise<void> {
+    if (!this.client) throw new Error('Supabase client not configured.');
+
+    const name = profile.publisher_name.trim();
+    if (!name) throw new Error('Publisher name is required for pioneer profile.');
+
+    const d = (v: string | null | undefined) => (v == null || String(v).trim() === '' ? null : String(v).trim());
+
+    const periods = (profile.auxiliary_pioneer_periods ?? [])
+      .map((p) => ({
+        approved_on: d(p.approved_on),
+        ended_on: d(p.ended_on),
+      }))
+      .filter((p) => p.approved_on != null || p.ended_on != null);
+    const regularPeriods = (profile.regular_pioneer_periods ?? [])
+      .map((p) => ({
+        approved_on: d(p.approved_on),
+        stopped_on: d(p.stopped_on),
+      }))
+      .filter((p) => p.approved_on != null || p.stopped_on != null);
+
+    const hasAux = periods.length > 0;
+    const hasRegular = regularPeriods.length > 0;
+    const empty = !hasAux && !hasRegular;
+
+    if (empty) {
+      const { error } = await this.client
+        .from('publisher_pioneer_profiles')
+        .delete()
+        .eq('publisher_name', name);
+
+      if (error) throw error;
+    } else {
+      const { error } = await this.client
+        .from('publisher_pioneer_profiles')
+        .upsert(
+          {
+            publisher_name: name,
+            auxiliary_pioneer_periods: periods,
+            regular_pioneer_periods: regularPeriods,
+          },
+          { onConflict: 'publisher_name' }
+        );
+
+      if (error) {
+        // Backward compatibility: older databases may still use single regular date columns.
+        if (!this.isMissingColumnError(error, 'regular_pioneer_periods')) {
+          throw error;
+        }
+
+        const latestRegular = regularPeriods[regularPeriods.length - 1] ?? null;
+        const { error: legacyError } = await this.client
+          .from('publisher_pioneer_profiles')
+          .upsert(
+            {
+              publisher_name: name,
+              auxiliary_pioneer_periods: periods,
+              regular_pioneer_approved_on: latestRegular?.approved_on ?? null,
+              regular_pioneer_stopped_on: latestRegular?.stopped_on ?? null,
+            },
+            { onConflict: 'publisher_name' }
+          );
+        if (legacyError) throw legacyError;
+      }
+    }
+
+    this.cache.invalidate(`${PIONEER_PROFILE_CACHE_PREFIX}${name}`);
+  }
+
+  private isMissingColumnError(error: unknown, column: string): boolean {
+    const e = error as { code?: unknown; message?: unknown; details?: unknown };
+    const code = String(e?.code ?? '');
+    const text = `${String(e?.message ?? '')} ${String(e?.details ?? '')}`.toLowerCase();
+    return (
+      code === '42703' ||
+      code === 'PGRST204' ||
+      (text.includes('column') && text.includes(column.toLowerCase()) && text.includes('does not exist'))
+    );
+  }
+
+  /**
    * Upserts a publisher record, then invalidates and re-fetches the
    * cache for that service year so all pages see fresh data immediately.
    */
@@ -295,6 +559,8 @@ export class SupabaseService {
       publisher_name: r.publisher_name,
       date_of_birth: r.date_of_birth,
       date_of_baptism: r.date_of_baptism,
+      unbaptized_publisher: !!r.unbaptized_publisher,
+      unbaptized_approved_on: r.unbaptized_approved_on ?? null,
       gender: r.gender,
       other_sheep: r.other_sheep,
       anointed: r.anointed,

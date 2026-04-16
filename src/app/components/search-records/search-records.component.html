@@ -179,6 +179,15 @@
                 </svg>
               </button>
               <button type="button"
+                class="p-1.5 rounded-lg text-gray-400 hover:text-teal-600 hover:bg-teal-50 transition-colors"
+                (click)="openPioneeringHistoryModal(item.record, $event)"
+                title="Pioneering history"
+                aria-label="Pioneering history">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a3 3 0 11-6 0 3 3 0 016 0zm5 13a8 8 0 10-16 0h16z" />
+                </svg>
+              </button>
+              <button type="button"
                 class="p-1.5 rounded-lg text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
                 (click)="openReportModal(item.record, $event)"
                 title="Add or edit monthly report"
@@ -311,7 +320,7 @@
       aria-modal="true"
       aria-labelledby="report-modal-title"
       (click)="closeReportModal()">
-      <div class="w-full sm:max-w-4xl max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto bg-white rounded-t-2xl sm:rounded-2xl shadow-xl border border-slate-200"
+      <div class="relative w-full sm:max-w-4xl max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto bg-white rounded-t-2xl sm:rounded-2xl shadow-xl border border-slate-200"
         (click)="$event.stopPropagation()">
         <div class="sticky top-0 z-10 flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-200 bg-white rounded-t-2xl">
           <div class="min-w-0">
@@ -321,6 +330,23 @@
               <span class="text-slate-400">·</span>
               {{ reportModalRecord.service_year_start }}–{{ reportModalRecord.service_year_start + 1 }}
             </p>
+            <div class="mt-2 flex flex-wrap gap-1.5 text-xs">
+              @if (reportModalRecord.regular_pioneer) {
+                <span class="inline-flex rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5">RP</span>
+              }
+              @if (reportModalRecord.elder) {
+                <span class="inline-flex rounded-full bg-blue-100 text-blue-700 px-2 py-0.5">Elder</span>
+              }
+              @if (reportModalRecord.ministerial_servant) {
+                <span class="inline-flex rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5">MS</span>
+              }
+              @if (reportModalRecord.special_pioneer) {
+                <span class="inline-flex rounded-full bg-amber-100 text-amber-700 px-2 py-0.5">SP</span>
+              }
+              @if (reportModalRecord.field_missionary) {
+                <span class="inline-flex rounded-full bg-purple-100 text-purple-700 px-2 py-0.5">FM</span>
+              }
+            </div>
           </div>
           <button type="button"
             class="shrink-0 p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
@@ -360,25 +386,112 @@
                 <span class="font-medium text-slate-900">{{ (reportModalRecord.publisher_group ?? '').trim() || '—' }}</span>
               </div>
             </div>
-            <div class="mt-3 flex flex-wrap gap-1.5 text-xs">
-              @if (reportModalRecord.regular_pioneer) {
-                <span class="inline-flex rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5">RP</span>
-              }
-              @if (reportModalRecord.elder) {
-                <span class="inline-flex rounded-full bg-blue-100 text-blue-700 px-2 py-0.5">Elder</span>
-              }
-              @if (reportModalRecord.ministerial_servant) {
-                <span class="inline-flex rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5">MS</span>
-              }
-              @if (reportModalRecord.special_pioneer) {
-                <span class="inline-flex rounded-full bg-amber-100 text-amber-700 px-2 py-0.5">SP</span>
-              }
-              @if (reportModalRecord.field_missionary) {
-                <span class="inline-flex rounded-full bg-purple-100 text-purple-700 px-2 py-0.5">FM</span>
-              }
-              @if (!reportModalRecord.regular_pioneer && !reportModalRecord.elder && !reportModalRecord.ministerial_servant && !reportModalRecord.special_pioneer && !reportModalRecord.field_missionary) {
-                <span class="text-slate-400">No privilege tags</span>
-              }
+            <div class="mt-4 pt-3 border-t border-slate-200">
+              <p class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Pioneer profile</p>
+              <p class="text-xs text-slate-400 mb-3">Stored per publisher.</p>
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                <div class="rounded-lg border border-slate-200 bg-white/70 p-3 space-y-2">
+                  <p class="text-xs font-semibold text-slate-600">Auxillary Pioneering</p>
+                  @for (ap of reportModalAuxiliaryPeriods; track $index) {
+                    <div class="rounded-md border border-slate-200 bg-slate-50/60 p-2.5 space-y-2">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="text-xs text-slate-500">Period {{ $index + 1 }}</span>
+                        <button type="button"
+                          class="text-xs text-red-600 hover:text-red-700 font-medium"
+                          (click)="removeReportModalAuxiliaryPeriodRow($index)">Remove</button>
+                      </div>
+                      <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Approved</label>
+                        <div class="flex items-center gap-2">
+                          <input type="text"
+                            class="w-full px-2.5 py-1.5 border border-slate-200 bg-white text-slate-900 rounded-md"
+                            [value]="ap.approvedOn ? formatHumanDate(ap.approvedOn) : ''"
+                            placeholder="Select a date"
+                            readonly />
+                          <input #reportAuxApprovedPicker type="date" class="sr-only"
+                            [(ngModel)]="ap.approvedOn" [name]="'reportAuxApproved' + $index" />
+                          <button type="button"
+                            class="px-2.5 py-1.5 rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                            (click)="openDatePicker(reportAuxApprovedPicker)"
+                            aria-label="Open approved date picker">📅</button>
+                        </div>
+                      </div>
+                      <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Stopped</label>
+                        <div class="flex items-center gap-2">
+                          <input type="text"
+                            class="w-full px-2.5 py-1.5 border border-slate-200 bg-white text-slate-900 rounded-md"
+                            [value]="ap.endedOn ? formatHumanDate(ap.endedOn) : ''"
+                            placeholder="Select a date"
+                            readonly />
+                          <input #reportAuxEndedPicker type="date" class="sr-only"
+                            [(ngModel)]="ap.endedOn" [name]="'reportAuxEnded' + $index" />
+                          <button type="button"
+                            class="px-2.5 py-1.5 rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                            (click)="openDatePicker(reportAuxEndedPicker)"
+                            aria-label="Open stopped date picker">📅</button>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                  <button type="button"
+                    class="w-full sm:w-auto px-2.5 py-1.5 rounded-md text-xs font-medium border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
+                    (click)="addReportModalAuxiliaryPeriodRow()">
+                    Add Pioneering Date
+                  </button>
+                </div>
+
+                <div class="rounded-lg border border-slate-200 bg-white/70 p-3 space-y-2">
+                  <p class="text-xs font-semibold text-slate-600">Regular Pioneering</p>
+                  @for (rp of reportModalRegularPeriods; track $index) {
+                    <div class="rounded-md border border-slate-200 bg-slate-50/60 p-2.5 space-y-2">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="text-xs text-slate-500">Period {{ $index + 1 }}</span>
+                        <button type="button"
+                          class="text-xs text-red-600 hover:text-red-700 font-medium"
+                          (click)="removeReportModalRegularPeriodRow($index)">Remove</button>
+                      </div>
+                      <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Approved</label>
+                        <div class="flex items-center gap-2">
+                          <input type="text"
+                            class="w-full px-2.5 py-1.5 border border-slate-200 bg-white text-slate-900 rounded-md"
+                            [value]="rp.approvedOn ? formatHumanDate(rp.approvedOn) : ''"
+                            placeholder="Select a date"
+                            readonly />
+                          <input #reportRegApprovedPicker type="date" class="sr-only"
+                            [(ngModel)]="rp.approvedOn" [name]="'reportRegApproved' + $index" />
+                          <button type="button"
+                            class="px-2.5 py-1.5 rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                            (click)="openDatePicker(reportRegApprovedPicker)"
+                            aria-label="Open approved date picker">📅</button>
+                        </div>
+                      </div>
+                      <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Stopped</label>
+                        <div class="flex items-center gap-2">
+                          <input type="text"
+                            class="w-full px-2.5 py-1.5 border border-slate-200 bg-white text-slate-900 rounded-md"
+                            [value]="rp.stoppedOn ? formatHumanDate(rp.stoppedOn) : ''"
+                            placeholder="Select a date"
+                            readonly />
+                          <input #reportRegStoppedPicker type="date" class="sr-only"
+                            [(ngModel)]="rp.stoppedOn" [name]="'reportRegStopped' + $index" />
+                          <button type="button"
+                            class="px-2.5 py-1.5 rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                            (click)="openDatePicker(reportRegStoppedPicker)"
+                            aria-label="Open stopped date picker">📅</button>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                  <button type="button"
+                    class="w-full sm:w-auto px-2.5 py-1.5 rounded-md text-xs font-medium border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
+                    (click)="addReportModalRegularPeriodRow()">
+                    Add Pioneering Date
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -445,6 +558,244 @@
               {{ reportModalSaving ? 'Saving...' : 'Save report' }}
             </button>
           </div>
+        </div>
+
+        @if (reportModalPendingPioneerRemoval) {
+          <div class="absolute inset-0 z-20 flex items-center justify-center p-4 bg-slate-900/45"
+            (click)="cancelReportModalPioneerPeriodRemoval()">
+            <div class="w-full max-w-sm bg-white rounded-xl border border-slate-200 shadow-xl p-4"
+              (click)="$event.stopPropagation()">
+              <h3 class="text-base font-semibold text-slate-900">Remove period?</h3>
+              <p class="text-sm text-slate-500 mt-1">
+                This period will be removed from the form.
+              </p>
+              <div class="mt-4 flex items-center justify-end gap-2">
+                <button type="button"
+                  class="px-3 py-2 rounded-lg text-sm font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-colors"
+                  (click)="cancelReportModalPioneerPeriodRemoval()">
+                  Cancel
+                </button>
+                <button type="button"
+                  class="px-3 py-2 rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors"
+                  (click)="confirmReportModalPioneerPeriodRemoval()">
+                  Remove
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  @if (pioneeringHistoryModalOpen) {
+    <div class="fixed inset-0 z-[55] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-[1px]"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pioneering-history-title"
+      (click)="closePioneeringHistoryModal()">
+      <div class="w-full sm:max-w-3xl max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto bg-white rounded-t-2xl sm:rounded-2xl shadow-xl border border-slate-200"
+        (click)="$event.stopPropagation()">
+        <div class="sticky top-0 z-10 flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-200 bg-white rounded-t-2xl">
+          <div class="min-w-0">
+            <h2 id="pioneering-history-title" class="text-lg font-semibold text-slate-900">Pioneering history</h2>
+            <p class="text-sm text-slate-500 mt-0.5 truncate">{{ pioneeringHistoryPublisherName }}</p>
+          </div>
+          <button type="button"
+            class="shrink-0 p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            (click)="closePioneeringHistoryModal()"
+            aria-label="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="px-5 py-4 space-y-5">
+          @if (pioneeringHistoryLoading) {
+            <p class="text-sm text-slate-500 py-6 text-center">Loading history…</p>
+          } @else if (pioneeringHistoryError) {
+            <p class="text-sm text-red-600 py-4">{{ pioneeringHistoryError }}</p>
+          } @else {
+            <div class="rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3">
+              <p class="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Profile milestones</p>
+              <p class="text-xs text-slate-500 mb-3">Stored once per publisher (Add Records).</p>
+              <p class="text-xs font-semibold text-slate-600 mb-1.5">Auxillary Pioneering</p>
+              @if (pioneeringHistoryProfile.auxiliary_pioneer_periods.length === 0) {
+                <p class="text-sm text-slate-500 mb-3">—</p>
+              } @else {
+                <ul class="space-y-2 mb-3 text-sm">
+                  @for (ap of pioneeringHistoryProfile.auxiliary_pioneer_periods; track $index) {
+                    <li class="rounded-md border border-slate-100 bg-white/70 px-3 py-2">
+                      <span class="text-xs text-slate-500">Period {{ $index + 1 }}</span>
+                      <div class="mt-1 grid grid-cols-2 sm:grid-cols-2 gap-2">
+                        <div>
+                          <span class="text-slate-500 block text-xs">Approved</span>
+                          <span class="font-medium text-slate-900">{{ formatHumanDate(ap.approved_on) || '—' }}</span>
+                        </div>
+                        <div>
+                          <span class="text-slate-500 block text-xs">Stopped</span>
+                          <span class="font-medium text-slate-900">{{ formatHumanDate(ap.ended_on) || '—' }}</span>
+                        </div>
+                      </div>
+                    </li>
+                  }
+                </ul>
+              }
+              <p class="text-xs font-semibold text-slate-600 mb-1.5">Regular Pioneering</p>
+              @if (pioneeringHistoryProfile.regular_pioneer_periods.length === 0) {
+                <p class="text-sm text-slate-500 mb-1">—</p>
+              } @else {
+                <ul class="space-y-2 text-sm">
+                  @for (rp of pioneeringHistoryProfile.regular_pioneer_periods; track $index) {
+                    <li class="rounded-md border border-slate-100 bg-white/70 px-3 py-2">
+                      <span class="text-xs text-slate-500">Period {{ $index + 1 }}</span>
+                      <div class="mt-1 grid grid-cols-2 gap-2">
+                        <div>
+                          <span class="text-slate-500 block text-xs">Approved</span>
+                          <span class="font-medium text-slate-900">{{ formatHumanDate(rp.approved_on) || '—' }}</span>
+                        </div>
+                        <div>
+                          <span class="text-slate-500 block text-xs">Stopped</span>
+                          <span class="font-medium text-slate-900">{{ formatHumanDate(rp.stopped_on) || '—' }}</span>
+                        </div>
+                      </div>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+
+            @if (pioneeringHistoryRecords.length === 0) {
+              <p class="text-sm text-slate-500">No publisher records found for this name.</p>
+            } @else {
+              @let chart = pioneeringHistoryMonthAxisChart();
+              <div class="rounded-lg border border-slate-200 overflow-hidden">
+                <div class="px-4 py-2.5 bg-slate-50 border-b border-slate-200">
+                  <p class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Hours by month (service year)</p>
+                </div>
+                @if (chart) {
+                  <div class="px-2 py-3 bg-white">
+                    <svg
+                      class="w-full max-w-xl mx-auto h-52 block"
+                      [attr.viewBox]="'0 0 ' + chart.viewBoxWidth + ' ' + chart.viewBoxHeight"
+                      preserveAspectRatio="xMidYMid meet"
+                      aria-hidden="true">
+                      @for (tk of chart.yTicks; track $index) {
+                        <line
+                          [attr.x1]="chart.plotLeft"
+                          [attr.y1]="tk.y"
+                          [attr.x2]="chart.plotRight"
+                          [attr.y2]="tk.y"
+                          stroke="#f1f5f9"
+                          stroke-width="1" />
+                        <text
+                          [attr.x]="chart.plotLeft - 6"
+                          [attr.y]="tk.y + 4"
+                          text-anchor="end"
+                          class="fill-slate-500"
+                          font-size="9"
+                          font-family="system-ui, sans-serif">{{ tk.label }}</text>
+                      }
+                      <line
+                        [attr.x1]="chart.plotLeft"
+                        [attr.y1]="chart.plotTop"
+                        [attr.x2]="chart.plotLeft"
+                        [attr.y2]="chart.plotBottom"
+                        stroke="#cbd5e1"
+                        stroke-width="1" />
+                      <line
+                        [attr.x1]="chart.plotLeft"
+                        [attr.y1]="chart.plotBottom"
+                        [attr.x2]="chart.plotRight"
+                        [attr.y2]="chart.plotBottom"
+                        stroke="#cbd5e1"
+                        stroke-width="1" />
+                      <text
+                        [attr.x]="chart.plotLeft - 4"
+                        [attr.y]="chart.plotTop - 4"
+                        text-anchor="start"
+                        class="fill-slate-500"
+                        font-size="9"
+                        font-family="system-ui, sans-serif">Hours</text>
+                      @for (s of chart.series; track s.yearLabel) {
+                        <polyline
+                          [attr.points]="s.polylinePoints"
+                          fill="none"
+                          [attr.stroke]="s.stroke"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round" />
+                        @for (pt of s.spots; track pt.tip) {
+                          <circle
+                            [attr.cx]="pt.cx"
+                            [attr.cy]="pt.cy"
+                            r="3.5"
+                            fill="#fff"
+                            [attr.stroke]="s.stroke"
+                            stroke-width="2"
+                            [attr.title]="pt.tip" />
+                        }
+                      }
+                      @for (xm of chart.xMonths; track xm.label) {
+                        <text
+                          [attr.x]="xm.x"
+                          [attr.y]="chart.plotBottom + 16"
+                          text-anchor="middle"
+                          class="fill-slate-600"
+                          font-size="9"
+                          font-family="system-ui, sans-serif">{{ xm.label }}</text>
+                      }
+                    </svg>
+                    <div class="flex flex-wrap justify-center gap-x-4 gap-y-1.5 mt-2 px-2">
+                      @for (s of chart.series; track s.yearLabel) {
+                        <span class="inline-flex items-center gap-1.5 text-xs text-slate-700">
+                          <span class="inline-block w-3 h-0.5 rounded-full shrink-0" [style.background]="s.stroke"></span>
+                          {{ s.yearLabel }}
+                        </span>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+
+              <div>
+                <h3 class="text-sm font-medium text-slate-800 mb-2">By service year</h3>
+                <div class="overflow-x-auto rounded-lg border border-slate-200">
+                  <table class="w-full min-w-[520px] text-sm">
+                    <thead>
+                      <tr class="bg-slate-50 text-left text-xs font-medium text-slate-600">
+                        <th class="py-2.5 px-3">Service year</th>
+                        <th class="py-2.5 px-3 text-center">Regular pioneer</th>
+                        <th class="py-2.5 px-3 text-center">Aux. months</th>
+                        <th class="py-2.5 px-3">Aux. months (detail)</th>
+                        <th class="py-2.5 px-3 text-right">Total hours</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (row of pioneeringHistoryRecords; track recordRowKey(row)) {
+                        <tr class="border-t border-slate-100">
+                          <td class="py-2 px-3 font-medium text-slate-900">{{ serviceYearRangeLabel(row.service_year_start) }}</td>
+                          <td class="py-2 px-3 text-center text-slate-800">{{ row.regular_pioneer ? 'Yes' : '—' }}</td>
+                          <td class="py-2 px-3 text-center text-slate-800">{{ countAuxiliaryPioneerMonths(row) }}</td>
+                          <td class="py-2 px-3 text-slate-700 text-xs">{{ auxiliaryPioneerMonthsSummary(row) }}</td>
+                          <td class="py-2 px-3 text-right tabular-nums text-slate-900">{{ getTotalHours(row) }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            }
+          }
+        </div>
+
+        <div class="px-5 py-3 border-t border-slate-100 flex justify-end">
+          <button type="button"
+            class="px-4 py-2 rounded-lg text-sm font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-colors"
+            (click)="closePioneeringHistoryModal()">
+            Close
+          </button>
         </div>
       </div>
     </div>

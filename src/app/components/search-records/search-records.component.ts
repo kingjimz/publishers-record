@@ -5,7 +5,9 @@ import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
 
 import {
+  emptyPublisherPioneerProfile,
   PublisherMonthlyRecord,
+  PublisherPioneerProfile,
   PublisherRecord,
   SupabaseService,
 } from '../../services/supabase.service';
@@ -28,6 +30,21 @@ import { ServiceYearSelectorComponent } from '../service-year-selector/service-y
   styleUrl: './search-records.component.css',
 })
 export class SearchRecordsComponent implements OnInit, OnDestroy {
+  /** Service-year month order (matches publisher record cards). */
+  private static readonly SERVICE_YEAR_MONTH_ORDER = [
+    'September',
+    'October',
+    'November',
+    'December',
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+  ] as const;
   protected loading = false;
   protected yearLoading = false;
   protected selectedGroup = '';
@@ -36,6 +53,8 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
   protected hasSearched = false;
   protected records: PublisherRecord[] = [];
   protected yearRecords: PublisherRecord[] = [];
+  /** Pioneer milestone dates keyed by exact `publisher_name` (per-publisher profile table). */
+  protected pioneerDisplayByName: Record<string, PublisherPioneerProfile> = {};
   protected expandedPublisher: string | null = null;
 
   private querySub?: Subscription;
@@ -62,6 +81,7 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
         this.records = [];
         this.expandedPublisher = null;
         this.cdr.detectChanges();
+        void this.refreshPioneerProfileMap();
         return;
       }
 
@@ -92,6 +112,7 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     this.records = [];
     this.expandedPublisher = null;
     this.resetPagination();
+    void this.refreshPioneerProfileMap();
   }
 
   /** Selected year changed — view filters client-side (search data already loaded). */
@@ -139,6 +160,9 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     if (this.selectedPrivilege === 'ministerial-servant') {
       return source.filter((r) => r.ministerial_servant);
     }
+    if (this.selectedPrivilege === 'unbaptized-publisher') {
+      return source.filter((r) => r.unbaptized_publisher);
+    }
     return source;
   }
 
@@ -153,6 +177,9 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     }
     if (this.selectedPrivilege === 'ministerial-servant') {
       return 'Ministerial Servants in the Congregation';
+    }
+    if (this.selectedPrivilege === 'unbaptized-publisher') {
+      return 'Unbaptized Publishers in the Congregation';
     }
     return 'Search Records';
   }
@@ -173,6 +200,9 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     if (this.selectedPrivilege === 'ministerial-servant') {
       return 'View all publishers serving as ministerial servants for the selected service year.';
     }
+    if (this.selectedPrivilege === 'unbaptized-publisher') {
+      return 'View all unbaptized publishers for the selected service year.';
+    }
     return 'Find a publisher by name to view their service record.';
   }
 
@@ -183,7 +213,8 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
       text === 'elder' ||
       text === 'regular-pioneer' ||
       text === 'auxiliary-pioneer' ||
-      text === 'ministerial-servant'
+      text === 'ministerial-servant' ||
+      text === 'unbaptized-publisher'
     ) {
       return text;
     }
@@ -281,8 +312,202 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     return `${monthNames[month - 1]} ${dayPadded}, ${year}`;
   }
 
+  protected openDatePicker(input: HTMLInputElement): void {
+    if (typeof input.showPicker === 'function') {
+      input.showPicker();
+    } else {
+      input.click();
+    }
+  }
+
   protected getTotalHours(record: PublisherRecord): number {
     return record.months?.reduce((sum, m) => sum + (m.hours ?? 0), 0) ?? 0;
+  }
+
+  protected openPioneeringHistoryModal(record: PublisherRecord, event?: Event): void {
+    event?.stopPropagation();
+    this.pioneeringHistoryModalOpen = true;
+    this.pioneeringHistoryLoading = true;
+    this.pioneeringHistoryPublisherName = record.publisher_name;
+    this.pioneeringHistoryRecords = [];
+    this.pioneeringHistoryProfile = emptyPublisherPioneerProfile(record.publisher_name);
+    this.pioneeringHistoryError = null;
+    this.cdr.detectChanges();
+
+    void (async () => {
+      try {
+        const [rows, prof] = await Promise.all([
+          this.supabase.getPublisherRecordsByPublisherNameExact(record.publisher_name),
+          this.supabase.getPioneerProfileByPublisherName(record.publisher_name),
+        ]);
+        this.pioneeringHistoryRecords = rows;
+        this.pioneeringHistoryProfile =
+          prof ?? emptyPublisherPioneerProfile(record.publisher_name);
+      } catch (err) {
+        this.pioneeringHistoryError =
+          err instanceof Error ? err.message : 'Could not load pioneering history.';
+      } finally {
+        this.pioneeringHistoryLoading = false;
+        this.cdr.markForCheck();
+      }
+    })();
+  }
+
+  protected closePioneeringHistoryModal(): void {
+    this.pioneeringHistoryModalOpen = false;
+    this.pioneeringHistoryLoading = false;
+    this.pioneeringHistoryPublisherName = '';
+    this.pioneeringHistoryRecords = [];
+    this.pioneeringHistoryProfile = emptyPublisherPioneerProfile('');
+    this.pioneeringHistoryError = null;
+    this.cdr.detectChanges();
+  }
+
+  protected serviceYearRangeLabel(yearStart: number): string {
+    return `${yearStart}\u2013${yearStart + 1}`;
+  }
+
+  protected countAuxiliaryPioneerMonths(record: PublisherRecord): number {
+    return record.months?.filter((m) => m.auxiliaryPioneer).length ?? 0;
+  }
+
+  /** Short month labels for months marked auxiliary pioneer (e.g. "Sep, Jan"). */
+  protected auxiliaryPioneerMonthsSummary(record: PublisherRecord): string {
+    const abbrev: Record<string, string> = {
+      September: 'Sep',
+      October: 'Oct',
+      November: 'Nov',
+      December: 'Dec',
+      January: 'Jan',
+      February: 'Feb',
+      March: 'Mar',
+      April: 'Apr',
+      May: 'May',
+      June: 'Jun',
+      July: 'Jul',
+      August: 'Aug',
+    };
+    const labels =
+      record.months
+        ?.filter((m) => m.auxiliaryPioneer)
+        .map((m) => abbrev[m.month] ?? m.month.slice(0, 3)) ?? [];
+    return labels.length ? labels.join(', ') : '—';
+  }
+
+  /**
+   * Chart: X = twelve service-year months (Sep–Aug), Y = reported hours; one line per service year.
+   */
+  protected pioneeringHistoryMonthAxisChart(): {
+    viewBoxWidth: number;
+    viewBoxHeight: number;
+    plotLeft: number;
+    plotRight: number;
+    plotTop: number;
+    plotBottom: number;
+    maxHours: number;
+    xMonths: { x: number; label: string }[];
+    yTicks: { y: number; label: string }[];
+    series: {
+      yearLabel: string;
+      stroke: string;
+      polylinePoints: string;
+      spots: { cx: number; cy: number; tip: string }[];
+    }[];
+  } | null {
+    const rows = [...this.pioneeringHistoryRecords].sort(
+      (a, b) => a.service_year_start - b.service_year_start
+    );
+    if (rows.length === 0) return null;
+
+    const monthOrder = SearchRecordsComponent.SERVICE_YEAR_MONTH_ORDER;
+    const xLabels = ['Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
+
+    let maxH = 1;
+    for (const r of rows) {
+      for (const month of monthOrder) {
+        const m = r.months?.find((x) => x.month === month);
+        const raw = m?.hours;
+        const hrs = raw == null ? 0 : Number(raw);
+        const h = Number.isFinite(hrs) ? hrs : 0;
+        if (h > maxH) maxH = h;
+      }
+    }
+
+    const vbW = 480;
+    const vbH = 210;
+    const plotL = 52;
+    const plotR = vbW - 16;
+    const plotT = 20;
+    const plotB = vbH - 40;
+
+    const xMonths = xLabels.map((label, i) => ({
+      x: plotL + (i / 11) * (plotR - plotL),
+      label,
+    }));
+
+    const yTicks = [0, 0.25, 0.5, 0.75, 1].map((frac) => {
+      const v = maxH * frac;
+      const y = plotB - frac * (plotB - plotT);
+      return { y, label: String(Math.round(v)) };
+    });
+
+    const yForHours = (hrs: number): number =>
+      plotB - (hrs / maxH) * (plotB - plotT);
+
+    const strokes = [
+      '#0d9488',
+      '#4f46e5',
+      '#d97706',
+      '#dc2626',
+      '#7c3aed',
+      '#15803d',
+      '#0369a1',
+      '#be185d',
+      '#57534e',
+      '#ea580c',
+    ];
+
+    const series = rows.map((r, si) => {
+      const spots = monthOrder.map((month, i) => {
+        const m = r.months?.find((x) => x.month === month);
+        const raw = m?.hours;
+        const hrs = raw == null ? 0 : Number(raw);
+        const h = Number.isFinite(hrs) ? hrs : 0;
+        const cx = plotL + (i / 11) * (plotR - plotL);
+        const cy = yForHours(h);
+        const yr = this.serviceYearRangeLabel(r.service_year_start);
+        const tip = `${yr} · ${month}: ${h} h`;
+        return { cx, cy, tip };
+      });
+      const polylinePoints = spots.map((p) => `${p.cx},${p.cy}`).join(' ');
+      return {
+        yearLabel: this.serviceYearRangeLabel(r.service_year_start),
+        stroke: strokes[si % strokes.length]!,
+        polylinePoints,
+        spots,
+      };
+    });
+
+    return {
+      viewBoxWidth: vbW,
+      viewBoxHeight: vbH,
+      plotLeft: plotL,
+      plotRight: plotR,
+      plotTop: plotT,
+      plotBottom: plotB,
+      maxHours: maxH,
+      xMonths,
+      yTicks,
+      series,
+    };
+  }
+
+  /** Pioneer profile for list / expanded row (defaults to empty dates until loaded). */
+  protected pioneerProfileFor(record: PublisherRecord): PublisherPioneerProfile {
+    return (
+      this.pioneerDisplayByName[record.publisher_name] ??
+      emptyPublisherPioneerProfile(record.publisher_name)
+    );
   }
 
   /** Opens the official-form layout in a new window and triggers print. */
@@ -328,20 +553,47 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
   protected confirmingDelete: string | null = null;
   protected deleting = false;
 
+  /** Modal: pioneering history across all service years (line chart + table). */
+  protected pioneeringHistoryModalOpen = false;
+  protected pioneeringHistoryLoading = false;
+  protected pioneeringHistoryPublisherName = '';
+  protected pioneeringHistoryRecords: PublisherRecord[] = [];
+  protected pioneeringHistoryProfile: PublisherPioneerProfile = emptyPublisherPioneerProfile('');
+  protected pioneeringHistoryError: string | null = null;
+
   /** Modal: edit monthly service report only (profile fields stay read-only in the modal). */
   protected reportModalRecord: PublisherRecord | null = null;
+  protected reportModalPioneerProfile: PublisherPioneerProfile = emptyPublisherPioneerProfile('');
+  protected reportModalAuxiliaryPeriods: { approvedOn: string; endedOn: string }[] = [];
+  protected reportModalRegularPeriods: { approvedOn: string; stoppedOn: string }[] = [];
+  protected reportModalPendingPioneerRemoval: { type: 'auxiliary' | 'regular'; index: number } | null =
+    null;
   protected reportModalMonths: PublisherMonthlyRecord[] = [];
   protected reportModalSaving = false;
 
   protected openReportModal(record: PublisherRecord, event?: Event): void {
     event?.stopPropagation();
     this.reportModalRecord = record;
+    this.reportModalPioneerProfile = this.pioneerProfileFor(record);
+    this.syncReportModalPioneerEditors();
     this.reportModalMonths = this.cloneMonthsForModal(record);
     this.cdr.detectChanges();
+    void this.supabase.getPioneerProfileByPublisherName(record.publisher_name).then((fresh) => {
+      if (!this.reportModalRecord || this.reportModalRecord.publisher_name !== record.publisher_name) {
+        return;
+      }
+      this.reportModalPioneerProfile = fresh ?? emptyPublisherPioneerProfile(record.publisher_name);
+      this.syncReportModalPioneerEditors();
+      this.cdr.markForCheck();
+    });
   }
 
   protected closeReportModal(): void {
     this.reportModalRecord = null;
+    this.reportModalPioneerProfile = emptyPublisherPioneerProfile('');
+    this.reportModalAuxiliaryPeriods = [];
+    this.reportModalRegularPeriods = [];
+    this.reportModalPendingPioneerRemoval = null;
     this.reportModalMonths = [];
     this.cdr.detectChanges();
   }
@@ -368,6 +620,7 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
       };
 
       await this.supabase.upsertPublisherRecord(payload);
+      await this.supabase.upsertPublisherPioneerProfile(this.buildReportModalPioneerProfilePayload());
       this.toast.showSuccess(`Monthly report saved for ${base.publisher_name}.`);
       this.closeReportModal();
       await this.loadYearRecords();
@@ -408,6 +661,104 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
         remarks: '',
       };
     });
+  }
+
+  protected addReportModalAuxiliaryPeriodRow(): void {
+    this.reportModalAuxiliaryPeriods = [
+      ...this.reportModalAuxiliaryPeriods,
+      { approvedOn: '', endedOn: '' },
+    ];
+    this.cdr.markForCheck();
+  }
+
+  protected removeReportModalAuxiliaryPeriodRow(index: number): void {
+    this.reportModalPendingPioneerRemoval = { type: 'auxiliary', index };
+    this.cdr.markForCheck();
+  }
+
+  protected addReportModalRegularPeriodRow(): void {
+    this.reportModalRegularPeriods = [
+      ...this.reportModalRegularPeriods,
+      { approvedOn: '', stoppedOn: '' },
+    ];
+    this.cdr.markForCheck();
+  }
+
+  protected removeReportModalRegularPeriodRow(index: number): void {
+    this.reportModalPendingPioneerRemoval = { type: 'regular', index };
+    this.cdr.markForCheck();
+  }
+
+  protected cancelReportModalPioneerPeriodRemoval(): void {
+    this.reportModalPendingPioneerRemoval = null;
+    this.cdr.markForCheck();
+  }
+
+  protected confirmReportModalPioneerPeriodRemoval(): void {
+    const pending = this.reportModalPendingPioneerRemoval;
+    if (!pending) return;
+
+    if (pending.type === 'auxiliary') {
+      this.reportModalAuxiliaryPeriods = this.reportModalAuxiliaryPeriods.filter(
+        (_, i) => i !== pending.index
+      );
+      if (this.reportModalAuxiliaryPeriods.length === 0) {
+        this.reportModalAuxiliaryPeriods = [{ approvedOn: '', endedOn: '' }];
+      }
+    } else {
+      this.reportModalRegularPeriods = this.reportModalRegularPeriods.filter(
+        (_, i) => i !== pending.index
+      );
+      if (this.reportModalRegularPeriods.length === 0) {
+        this.reportModalRegularPeriods = [{ approvedOn: '', stoppedOn: '' }];
+      }
+    }
+
+    this.reportModalPendingPioneerRemoval = null;
+    this.cdr.markForCheck();
+  }
+
+  private syncReportModalPioneerEditors(): void {
+    const toInputDate = (v: string | null | undefined): string => {
+      if (v == null || v === '') return '';
+      const t = String(v).trim();
+      return t.length >= 10 ? t.slice(0, 10) : t;
+    };
+    const aux = this.reportModalPioneerProfile.auxiliary_pioneer_periods ?? [];
+    this.reportModalAuxiliaryPeriods =
+      aux.length > 0
+        ? aux.map((p) => ({
+            approvedOn: toInputDate(p.approved_on),
+            endedOn: toInputDate(p.ended_on),
+          }))
+        : [{ approvedOn: '', endedOn: '' }];
+    const reg = this.reportModalPioneerProfile.regular_pioneer_periods ?? [];
+    this.reportModalRegularPeriods =
+      reg.length > 0
+        ? reg.map((p) => ({
+            approvedOn: toInputDate(p.approved_on),
+            stoppedOn: toInputDate(p.stopped_on),
+          }))
+        : [{ approvedOn: '', stoppedOn: '' }];
+  }
+
+  private buildReportModalPioneerProfilePayload(): PublisherPioneerProfile {
+    const name = this.reportModalRecord?.publisher_name?.trim() ?? '';
+    return {
+      publisher_name: name,
+      auxiliary_pioneer_periods: this.reportModalAuxiliaryPeriods
+        .map((p) => ({
+          approved_on: p.approvedOn.trim() || null,
+          ended_on: p.endedOn.trim() || null,
+        }))
+        .filter((p) => p.approved_on != null || p.ended_on != null),
+      regular_pioneer_periods: this.reportModalRegularPeriods
+        .map((p) => ({
+          approved_on: p.approvedOn.trim() || null,
+          stopped_on: p.stoppedOn.trim() || null,
+        }))
+        .filter((p) => p.approved_on != null || p.stopped_on != null),
+    };
   }
 
   private coerceNullableNumber(value: unknown): number | null {
@@ -458,6 +809,7 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     try {
       const text = this.query.trim();
       this.records = await this.supabase.searchPublisherRecordsAcrossYears(text);
+      await this.refreshPioneerProfileMap();
     } catch (err) {
       this.toast.showError(err instanceof Error ? err.message : 'Failed to load records.');
     } finally {
@@ -474,11 +826,38 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     try {
       const y = this.supabase.serviceYear();
       this.yearRecords = await this.supabase.getPublisherRecordsByServiceYear(y);
+      await this.refreshPioneerProfileMap();
     } catch (err) {
       this.toast.showError(err instanceof Error ? err.message : 'Failed to load publishers.');
     } finally {
       this.yearLoading = false;
       this.cdr.detectChanges();
+    }
+  }
+
+  /** Names on the current list (full year when not searching; in-year matches when searching). */
+  private listRecordsForPioneerHydration(): PublisherRecord[] {
+    return this.hasSearched ? this.recordsForSelectedYearSorted : this.yearRecordsSorted;
+  }
+
+  private async refreshPioneerProfileMap(): Promise<void> {
+    try {
+      const list = this.listRecordsForPioneerHydration();
+      const names = [...new Set(list.map((r) => r.publisher_name))];
+      if (names.length === 0) {
+        this.pioneerDisplayByName = {};
+        this.cdr.markForCheck();
+        return;
+      }
+      const map = await this.supabase.getPioneerProfilesForPublisherNames(names);
+      const next: Record<string, PublisherPioneerProfile> = {};
+      for (const n of names) {
+        next[n] = map.get(n) ?? emptyPublisherPioneerProfile(n);
+      }
+      this.pioneerDisplayByName = next;
+      this.cdr.markForCheck();
+    } catch {
+      /* Pioneer map is optional; list still works if this fails. */
     }
   }
 }

@@ -55,6 +55,10 @@ export class DashboardComponent implements OnInit {
     return this.yearRecords.filter((r) => r.ministerial_servant).length;
   }
 
+  protected get unbaptizedPublisherCount(): number {
+    return this.yearRecords.filter((r) => r.unbaptized_publisher).length;
+  }
+
   protected searchQuery = '';
 
   protected async onEldersCardClick(): Promise<void> {
@@ -84,6 +88,12 @@ export class DashboardComponent implements OnInit {
   protected async onMinisterialServantsCardClick(): Promise<void> {
     await this.router.navigate(['/publishers-record/search-records'], {
       queryParams: { privilege: 'ministerial-servant' },
+    });
+  }
+
+  protected async onUnbaptizedPublishersCardClick(): Promise<void> {
+    await this.router.navigate(['/publishers-record/search-records'], {
+      queryParams: { privilege: 'unbaptized-publisher' },
     });
   }
 
