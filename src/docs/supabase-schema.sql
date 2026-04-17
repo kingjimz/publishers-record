@@ -18,6 +18,7 @@ create table if not exists public.publisher_records (
   id uuid primary key default gen_random_uuid(),
   service_year_start integer not null check (service_year_start >= 2000 and service_year_start <= 2100),
   publisher_name text not null,
+  inactive boolean not null default false,
   date_of_birth date null,
   date_of_baptism date null,
   unbaptized_publisher boolean not null default false,
@@ -40,6 +41,7 @@ create table if not exists public.publisher_records (
 -- Older databases may predate publisher_group
 alter table public.publisher_records
   add column if not exists publisher_group text null,
+  add column if not exists inactive boolean not null default false,
   add column if not exists unbaptized_publisher boolean not null default false,
   add column if not exists unbaptized_approved_on date null;
 

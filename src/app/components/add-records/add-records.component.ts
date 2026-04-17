@@ -50,6 +50,7 @@ export class AddRecordsComponent implements OnInit {
   protected regularPioneer = false;
   protected specialPioneer = false;
   protected fieldMissionary = false;
+  protected inactive = false;
   protected showPioneerDates = false;
   /** Multiple auxiliary stints (e.g. Sep–Apr, then approved again later in the service year). */
   protected auxiliaryPeriods: { approvedOn: string; endedOn: string }[] = [
@@ -193,6 +194,7 @@ export class AddRecordsComponent implements OnInit {
     this.regularPioneer = record.regular_pioneer;
     this.specialPioneer = record.special_pioneer;
     this.fieldMissionary = record.field_missionary;
+    this.inactive = !!record.inactive;
 
     const defaultMonths = this.createDefaultMonths();
     this.monthlyRecords = defaultMonths.map((month) => {
@@ -350,6 +352,7 @@ export class AddRecordsComponent implements OnInit {
     this.regularPioneer = false;
     this.specialPioneer = false;
     this.fieldMissionary = false;
+    this.inactive = false;
     this.showPioneerDates = false;
     this.auxiliaryPeriods = [{ approvedOn: '', endedOn: '' }];
     this.regularPioneerPeriods = [{ approvedOn: '', stoppedOn: '' }];
@@ -394,6 +397,7 @@ export class AddRecordsComponent implements OnInit {
       regular_pioneer: this.regularPioneer,
       special_pioneer: this.specialPioneer,
       field_missionary: this.fieldMissionary,
+      inactive: this.inactive,
       months: this.monthlyRecords.map((item) => ({
         month: item.month,
         sharedInMinistry: item.sharedInMinistry,
@@ -494,6 +498,7 @@ export class AddRecordsComponent implements OnInit {
       regular_pioneer: !!r.regular_pioneer,
       special_pioneer: !!r.special_pioneer,
       field_missionary: !!r.field_missionary,
+      inactive: !!r.inactive,
       months: r.months.map((m) => {
         const bs = m.bibleStudies == null ? null : Number(m.bibleStudies);
         const h = m.hours == null ? null : Number(m.hours);

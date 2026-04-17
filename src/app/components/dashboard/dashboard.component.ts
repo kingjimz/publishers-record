@@ -34,7 +34,7 @@ export class DashboardComponent implements OnInit {
   }
 
   protected get totalPublishers(): number {
-    return this.yearRecords.length;
+    return this.yearRecords.filter((r) => !r.inactive).length;
   }
 
   protected get regularPioneerCount(): number {
@@ -57,6 +57,10 @@ export class DashboardComponent implements OnInit {
 
   protected get unbaptizedPublisherCount(): number {
     return this.yearRecords.filter((r) => r.unbaptized_publisher).length;
+  }
+
+  protected get inactivePublisherCount(): number {
+    return this.yearRecords.filter((r) => !!r.inactive).length;
   }
 
   protected searchQuery = '';
@@ -94,6 +98,12 @@ export class DashboardComponent implements OnInit {
   protected async onUnbaptizedPublishersCardClick(): Promise<void> {
     await this.router.navigate(['/publishers-record/search-records'], {
       queryParams: { privilege: 'unbaptized-publisher' },
+    });
+  }
+
+  protected async onInactivePublishersCardClick(): Promise<void> {
+    await this.router.navigate(['/publishers-record/search-records'], {
+      queryParams: { privilege: 'inactive' },
     });
   }
 

@@ -163,6 +163,9 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     if (this.selectedPrivilege === 'unbaptized-publisher') {
       return source.filter((r) => r.unbaptized_publisher);
     }
+    if (this.selectedPrivilege === 'inactive') {
+      return source.filter((r) => !!r.inactive);
+    }
     return source;
   }
 
@@ -180,6 +183,9 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     }
     if (this.selectedPrivilege === 'unbaptized-publisher') {
       return 'Unbaptized Publishers in the Congregation';
+    }
+    if (this.selectedPrivilege === 'inactive') {
+      return 'Inactive Publishers in the Congregation';
     }
     return 'Search Records';
   }
@@ -203,6 +209,9 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     if (this.selectedPrivilege === 'unbaptized-publisher') {
       return 'View all unbaptized publishers for the selected service year.';
     }
+    if (this.selectedPrivilege === 'inactive') {
+      return 'View all inactive publishers for the selected service year.';
+    }
     return 'Find a publisher by name to view their service record.';
   }
 
@@ -214,7 +223,8 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
       text === 'regular-pioneer' ||
       text === 'auxiliary-pioneer' ||
       text === 'ministerial-servant' ||
-      text === 'unbaptized-publisher'
+      text === 'unbaptized-publisher' ||
+      text === 'inactive'
     ) {
       return text;
     }
@@ -569,11 +579,13 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
   protected reportModalPendingPioneerRemoval: { type: 'auxiliary' | 'regular'; index: number } | null =
     null;
   protected reportModalMonths: PublisherMonthlyRecord[] = [];
+  protected reportModalInactive = false;
   protected reportModalSaving = false;
 
   protected openReportModal(record: PublisherRecord, event?: Event): void {
     event?.stopPropagation();
     this.reportModalRecord = record;
+    this.reportModalInactive = !!record.inactive;
     this.reportModalPioneerProfile = this.pioneerProfileFor(record);
     this.syncReportModalPioneerEditors();
     this.reportModalMonths = this.cloneMonthsForModal(record);
@@ -595,6 +607,7 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     this.reportModalRegularPeriods = [];
     this.reportModalPendingPioneerRemoval = null;
     this.reportModalMonths = [];
+    this.reportModalInactive = false;
     this.cdr.detectChanges();
   }
 
@@ -609,6 +622,7 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     try {
       const payload: PublisherRecord = {
         ...base,
+        inactive: this.reportModalInactive,
         months: this.reportModalMonths.map((item) => ({
           month: item.month,
           sharedInMinistry: item.sharedInMinistry,

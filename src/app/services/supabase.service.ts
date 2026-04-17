@@ -18,6 +18,7 @@ export interface PublisherRecord {
   id?: string;
   service_year_start: number;
   publisher_name: string;
+  inactive?: boolean;
   date_of_birth: string | null;
   date_of_baptism: string | null;
   unbaptized_publisher: boolean;
@@ -557,6 +558,7 @@ export class SupabaseService {
     const rows = toCopy.map((r) => ({
       service_year_start: targetYear,
       publisher_name: r.publisher_name,
+      inactive: !!r.inactive,
       date_of_birth: r.date_of_birth,
       date_of_baptism: r.date_of_baptism,
       unbaptized_publisher: !!r.unbaptized_publisher,
