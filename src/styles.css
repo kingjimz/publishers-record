@@ -24,6 +24,16 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /* Hide scrollbars while keeping scroll (wheel, touch, keyboard) working. */
+  * {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* legacy Edge */
+  }
+
+  *::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-semibold text-slate-900;
     letter-spacing: -0.02em;

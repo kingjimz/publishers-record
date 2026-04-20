@@ -1,28 +1,33 @@
 import { Routes } from '@angular/router';
-import { ForgotPasswordComponent } from './components/forgot-password/forgot-password.component';
-import { LoginComponent } from './components/login/login.component';
-import { NotFoundComponent } from './components/not-found/not-found.component';
-import { DashboardComponent } from './components/dashboard/dashboard.component';
-import { AddRecordsComponent } from './components/add-records/add-records.component';
-import { SearchRecordsComponent } from './components/search-records/search-records.component';
-import { ModuleSelectorComponent } from './components/module-selector/module-selector.component';
-import { AttendanceComponent } from './components/attendance/attendance.component';
-import { LayoutComponent } from './layout/layout.component';
+
 import { authGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
-  { path: 'login', component: LoginComponent },
-  { path: 'forgot-password', component: ForgotPasswordComponent },
+  {
+    path: 'login',
+    loadComponent: () =>
+      import('./components/login/login.component').then((m) => m.LoginComponent),
+  },
+  {
+    path: 'forgot-password',
+    loadComponent: () =>
+      import('./components/forgot-password/forgot-password.component').then(
+        (m) => m.ForgotPasswordComponent
+      ),
+  },
   {
     path: '',
-    component: ModuleSelectorComponent,
+    loadComponent: () =>
+      import('./components/module-selector/module-selector.component').then(
+        (m) => m.ModuleSelectorComponent
+      ),
     canActivate: [authGuard],
     pathMatch: 'full',
     data: { animation: 'ModuleSelectorPage' },
   },
   {
     path: '',
-    component: LayoutComponent,
+    loadComponent: () => import('./layout/layout.component').then((m) => m.LayoutComponent),
     canActivate: [authGuard],
     children: [
       {
@@ -30,17 +35,24 @@ export const routes: Routes = [
         children: [
           {
             path: 'dashboard',
-            component: DashboardComponent,
+            loadComponent: () =>
+              import('./components/dashboard/dashboard.component').then((m) => m.DashboardComponent),
             data: { animation: 'DashboardPage', tool: 'publishers-record' },
           },
           {
             path: 'add-records',
-            component: AddRecordsComponent,
+            loadComponent: () =>
+              import('./components/add-records/add-records.component').then(
+                (m) => m.AddRecordsComponent
+              ),
             data: { animation: 'AddRecordsPage', tool: 'publishers-record' },
           },
           {
             path: 'search-records',
-            component: SearchRecordsComponent,
+            loadComponent: () =>
+              import('./components/search-records/search-records.component').then(
+                (m) => m.SearchRecordsComponent
+              ),
             data: { animation: 'SearchPage', tool: 'publishers-record' },
           },
           { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
@@ -48,10 +60,15 @@ export const routes: Routes = [
       },
       {
         path: 'attendance',
-        component: AttendanceComponent,
+        loadComponent: () =>
+          import('./components/attendance/attendance.component').then((m) => m.AttendanceComponent),
         data: { animation: 'AttendancePage', tool: 'attendance' },
       },
     ],
   },
-  { path: '**', component: NotFoundComponent },
+  {
+    path: '**',
+    loadComponent: () =>
+      import('./components/not-found/not-found.component').then((m) => m.NotFoundComponent),
+  },
 ];

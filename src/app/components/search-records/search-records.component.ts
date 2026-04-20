@@ -11,6 +11,7 @@ import {
   PublisherRecord,
   SupabaseService,
 } from '../../services/supabase.service';
+import { OpenRouterService } from '../../services/open-router.service';
 import { ToastService } from '../../services/toast.service';
 import {
   displayPublisherGroupLabel,
@@ -20,6 +21,8 @@ import {
   buildPublisherRecordPrintDocument,
   sanitizeFilenamePart,
 } from '../../utils/publisher-record-print';
+import { buildPublisherServiceYearSummaryParagraph } from '../../utils/publisher-service-year-summary';
+import { environment } from '../../../environments/environment';
 import { ServiceYearSelectorComponent } from '../service-year-selector/service-year-selector.component';
 
 @Component({
@@ -63,7 +66,8 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     protected readonly supabase: SupabaseService,
     private readonly toast: ToastService,
     private readonly cdr: ChangeDetectorRef,
-    private readonly route: ActivatedRoute
+    private readonly route: ActivatedRoute,
+    private readonly openRouter: OpenRouterService
   ) {}
 
   ngOnInit(): void {
@@ -332,6 +336,57 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
 
   protected getTotalHours(record: PublisherRecord): number {
     return record.months?.reduce((sum, m) => sum + (m.hours ?? 0), 0) ?? 0;
+  }
+
+  /** Rule-based paragraph sent to OpenRouter only as grounding context (not shown in UI). */
+  private referenceSummaryForOpenRouter(record: PublisherRecord): string {
+    return buildPublisherServiceYearSummaryParagraph(record, this.pioneerProfileFor(record));
+  }
+
+  /** In-memory AI summary only (not stored in the database). */
+  private readonly aiSummaryTextByKey: Record<string, string> = {};
+  private readonly aiSummaryErrorByKey: Record<string, string> = {};
+  private readonly aiSummaryLoadingByKey: Record<string, true> = {};
+
+  protected get openRouterConfigured(): boolean {
+    return !!environment.openRouterApiKey?.trim();
+  }
+
+  protected aiSummaryText(record: PublisherRecord): string | null {
+    const t = this.aiSummaryTextByKey[this.recordRowKey(record)];
+    return t ?? null;
+  }
+
+  protected aiSummaryLoading(record: PublisherRecord): boolean {
+    return !!this.aiSummaryLoadingByKey[this.recordRowKey(record)];
+  }
+
+  protected aiSummaryError(record: PublisherRecord): string | null {
+    return this.aiSummaryErrorByKey[this.recordRowKey(record)] ?? null;
+  }
+
+  protected async generateAiSummary(record: PublisherRecord, event?: Event): Promise<void> {
+    event?.stopPropagation();
+    const key = this.recordRowKey(record);
+    this.aiSummaryLoadingByKey[key] = true;
+    delete this.aiSummaryErrorByKey[key];
+    this.cdr.markForCheck();
+
+    try {
+      const text = await this.openRouter.summarizePublisherServiceYear(
+        record,
+        this.pioneerProfileFor(record),
+        this.referenceSummaryForOpenRouter(record)
+      );
+      this.aiSummaryTextByKey[key] = text;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'AI summary failed.';
+      this.aiSummaryErrorByKey[key] = msg;
+      this.toast.showError(msg);
+    } finally {
+      delete this.aiSummaryLoadingByKey[key];
+      this.cdr.markForCheck();
+    }
   }
 
   protected openPioneeringHistoryModal(record: PublisherRecord, event?: Event): void {

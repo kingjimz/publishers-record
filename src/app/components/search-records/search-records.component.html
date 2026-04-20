@@ -240,6 +240,38 @@
           <!-- Expanded detail -->
           @if (expandedPublisher === recordRowKey(item.record)) {
             <div class="border-t border-gray-200 px-5 py-4">
+              <div class="rounded-lg border border-primary-200/80 bg-primary-50/40 px-4 py-3 mb-4">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <p class="text-xs font-semibold text-primary-800 uppercase tracking-wide">Service year summary</p>
+                  @if (openRouterConfigured) {
+                    <button type="button"
+                      class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium border border-primary-300/60 bg-white text-primary-900 hover:bg-primary-50/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      [disabled]="aiSummaryLoading(item.record)"
+                      (click)="generateAiSummary(item.record, $event)">
+                      {{ aiSummaryLoading(item.record) ? 'Working…' : 'Summarize with AI' }}
+                    </button>
+                  }
+                </div>
+                @if (!openRouterConfigured) {
+                  <p class="text-xs text-slate-600 leading-relaxed">
+                    Set <span class="font-mono text-slate-800">openRouterApiKey</span> in
+                    <span class="font-mono text-slate-800">src/environments/environment.ts</span>
+                    (default model <span class="font-mono text-slate-800">openrouter/free</span> via <span class="font-mono text-slate-800">openRouterModel</span>).
+                  </p>
+                }
+                @if (openRouterConfigured && aiSummaryError(item.record)) {
+                  <p class="text-xs text-red-700 mt-2">{{ aiSummaryError(item.record) }}</p>
+                }
+                @if (openRouterConfigured && aiSummaryLoading(item.record) && !aiSummaryText(item.record)) {
+                  <p class="text-sm text-slate-800 leading-relaxed mt-1">Generating summary…</p>
+                }
+                @if (openRouterConfigured && aiSummaryText(item.record)) {
+                  <p class="text-sm text-slate-800 leading-relaxed mt-1 whitespace-pre-line">{{ aiSummaryText(item.record) }}</p>
+                } @else if (openRouterConfigured && !aiSummaryLoading(item.record) && !aiSummaryError(item.record)) {
+                  <p class="text-xs text-slate-500 mt-1">Click &ldquo;Summarize with AI&rdquo; when you want a summary.</p>
+                }
+              </div>
+
               <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-4">
                 <div class="flex flex-col min-w-0">
                   <span class="text-gray-500 shrink-0">Gender:</span>
