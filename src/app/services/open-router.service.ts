@@ -60,7 +60,7 @@ export class OpenRouterService {
     const apiKey = environment.openRouterApiKey?.trim();
     if (!apiKey) {
       throw new Error(
-        'OpenRouter is not configured: set openRouterApiKey in src/environments/environment.ts (local only; do not commit secrets).'
+        'OpenRouter is not configured: set OPENROUTER_API_KEY in root .env for yarn start/build, or in your host build environment (e.g. Netlify), then rebuild.'
       );
     }
 
