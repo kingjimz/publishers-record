@@ -3,9 +3,9 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
-    "build": "ng build",
-    "watch": "ng build --watch --configuration development",
+    "start": "node scripts/ng-with-openrouter-env.cjs serve",
+    "build": "node scripts/ng-with-openrouter-env.cjs build",
+    "watch": "node scripts/ng-with-openrouter-env.cjs build --watch --configuration development",
     "test": "ng test",
     "supabase:link": "npx supabase link --project-ref dwsrhagtljarrnfcghcd"
   },

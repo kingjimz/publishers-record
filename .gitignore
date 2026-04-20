@@ -11,6 +11,13 @@
 npm-debug.log
 yarn-error.log
 
+# Local secrets (OpenRouter, etc.) — see .env.example
+.env
+.env.*.local
+
+# Legacy (replaced by build-time define); safe to delete if still present
+src/environments/open-router-env.generated.ts
+
 # IDEs and editors
 .idea/
 .project

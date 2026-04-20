@@ -27,7 +27,11 @@
             ],
             "styles": [
               "src/styles.css"
-            ]
+            ],
+            "define": {
+              "OPENROUTER_API_KEY": "''",
+              "OPENROUTER_MODEL": "'openrouter/free'"
+            }
           },
           "configurations": {
             "production": {
