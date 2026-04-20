@@ -74,6 +74,71 @@ function buildRecordPayload(
   return JSON.stringify(payload, null, 0);
 }
 
+function parseOpenRouterApiErrorMessage(rawText: string): string {
+  try {
+    const parsed = JSON.parse(rawText) as { error?: { message?: string } };
+    const m = parsed?.error?.message;
+    if (typeof m === 'string' && m.trim()) return m.trim();
+  } catch {
+    /* use raw slice */
+  }
+  return rawText.slice(0, 500).trim();
+}
+
+/** Maps provider errors to concise copy for congregation-facing UI and toasts. */
+function formatOpenRouterRequestError(httpStatus: number, apiMessage: string): string {
+  const lower = (apiMessage || '').toLowerCase();
+
+  if (httpStatus === 429) {
+    if (lower.includes('free-models-per-day')) {
+      return (
+        'The daily allowance for free AI models on this OpenRouter account has been used. ' +
+        'It normally resets at midnight UTC, or you can add credits or configure a paid model to continue sooner.'
+      );
+    }
+    if (
+      lower.includes('rate limit') ||
+      lower.includes('too many requests') ||
+      lower.includes('requests per minute') ||
+      lower.includes('tokens per minute')
+    ) {
+      return (
+        'The AI service is temporarily limiting traffic. Please wait a few minutes and try the summary again.'
+      );
+    }
+    return 'Too many requests reached the AI service in a short period. Please wait briefly and try again.';
+  }
+
+  if (httpStatus === 402) {
+    return (
+      'OpenRouter requires an active balance or payment method for this model. ' +
+      'Please review billing in your OpenRouter account, or choose a free model if appropriate.'
+    );
+  }
+
+  if (httpStatus === 401) {
+    return (
+      'The OpenRouter API key was not accepted. Confirm OPENROUTER_API_KEY in your environment, then rebuild or redeploy.'
+    );
+  }
+
+  if (httpStatus === 400) {
+    return (
+      'The AI service could not process this request. Check that OPENROUTER_MODEL is a valid model identifier.'
+    );
+  }
+
+  if (httpStatus === 503 || httpStatus === 502) {
+    return 'The AI service is temporarily unavailable. Please try again shortly.';
+  }
+
+  if (httpStatus >= 500) {
+    return 'The AI service encountered a temporary error. Please try again in a few minutes.';
+  }
+
+  return 'The AI summary could not be generated. Please try again later, or verify your OpenRouter account and model settings.';
+}
+
 @Injectable({ providedIn: 'root' })
 export class OpenRouterService {
   /**
@@ -140,14 +205,8 @@ export class OpenRouterService {
 
     const rawText = await res.text();
     if (!res.ok) {
-      let detail = rawText.slice(0, 500);
-      try {
-        const parsed = JSON.parse(rawText) as { error?: { message?: string } };
-        if (parsed?.error?.message) detail = parsed.error.message;
-      } catch {
-        /* use raw slice */
-      }
-      throw new Error(`OpenRouter request failed (${res.status}): ${detail}`);
+      const apiMessage = parseOpenRouterApiErrorMessage(rawText);
+      throw new Error(formatOpenRouterRequestError(res.status, apiMessage));
     }
 
     let data: unknown;
