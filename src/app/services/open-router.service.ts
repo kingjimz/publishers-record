@@ -5,45 +5,73 @@ import type { PublisherPioneerProfile, PublisherRecord } from './supabase.servic
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
+/** ISO date part YYYY-MM-DD, or null when missing / unusable. */
+function isoDatePart(value: string | null | undefined): string | null {
+  if (value == null) return null;
+  const t = String(value).trim();
+  if (!t) return null;
+  return t.length >= 10 ? t.slice(0, 10) : t;
+}
+
+/** Distinct regular-pioneer `approved_on` dates from the pioneer profile (YYYY-MM-DD), oldest first. */
+function regularPioneerApprovedDates(
+  pioneerProfile: PublisherPioneerProfile | null | undefined
+): string[] {
+  const periods = pioneerProfile?.regular_pioneer_periods ?? [];
+  const out: string[] = [];
+  for (const p of periods) {
+    const a = isoDatePart(p.approved_on ?? undefined);
+    if (a) out.push(a);
+  }
+  return [...new Set(out)].sort((x, y) => x.localeCompare(y));
+}
+
 function buildRecordPayload(
   record: PublisherRecord,
   pioneerProfile: PublisherPioneerProfile | null | undefined,
   referenceSummary: string
 ): string {
-  return JSON.stringify(
-    {
-      serviceYear: `${record.service_year_start}\u2013${record.service_year_start + 1}`,
-      publisherName: record.publisher_name,
-      inactive: !!record.inactive,
-      gender: record.gender,
-      unbaptizedPublisher: !!record.unbaptized_publisher,
-      privileges: {
-        elder: !!record.elder,
-        ministerialServant: !!record.ministerial_servant,
-        regularPioneer: !!record.regular_pioneer,
-        specialPioneer: !!record.special_pioneer,
-        fieldMissionary: !!record.field_missionary,
-      },
-      publisherGroup: record.publisher_group ?? null,
-      months: (record.months ?? []).map((m) => ({
-        month: m.month,
-        sharedInMinistry: !!m.sharedInMinistry,
-        bibleStudies: m.bibleStudies ?? null,
-        auxiliaryPioneer: !!m.auxiliaryPioneer,
-        hours: m.hours ?? null,
-        remarks: (m.remarks ?? '').trim() || null,
-      })),
-      pioneerProfile: pioneerProfile
-        ? {
-            auxiliaryPioneerPeriods: pioneerProfile.auxiliary_pioneer_periods ?? [],
-            regularPioneerPeriods: pioneerProfile.regular_pioneer_periods ?? [],
-          }
-        : null,
-      referenceSummaryFromApp: referenceSummary,
+  const payload: Record<string, unknown> = {
+    serviceYear: `${record.service_year_start}\u2013${record.service_year_start + 1}`,
+    publisherName: record.publisher_name,
+    inactive: !!record.inactive,
+    gender: record.gender,
+    unbaptizedPublisher: !!record.unbaptized_publisher,
+    privileges: {
+      elder: !!record.elder,
+      ministerialServant: !!record.ministerial_servant,
+      regularPioneer: !!record.regular_pioneer,
+      specialPioneer: !!record.special_pioneer,
+      fieldMissionary: !!record.field_missionary,
     },
-    null,
-    0
-  );
+    publisherGroup: record.publisher_group ?? null,
+    months: (record.months ?? []).map((m) => ({
+      month: m.month,
+      sharedInMinistry: !!m.sharedInMinistry,
+      bibleStudies: m.bibleStudies ?? null,
+      auxiliaryPioneer: !!m.auxiliaryPioneer,
+      hours: m.hours ?? null,
+      remarks: (m.remarks ?? '').trim() || null,
+    })),
+    pioneerProfile: pioneerProfile
+      ? {
+          auxiliaryPioneerPeriods: pioneerProfile.auxiliary_pioneer_periods ?? [],
+          regularPioneerPeriods: pioneerProfile.regular_pioneer_periods ?? [],
+        }
+      : null,
+    referenceSummaryFromApp: referenceSummary,
+  };
+
+  const dob = isoDatePart(record.date_of_birth);
+  if (dob) payload['dateOfBirth'] = dob;
+
+  const baptism = isoDatePart(record.date_of_baptism);
+  if (baptism) payload['dateOfBaptism'] = baptism;
+
+  const regApproved = regularPioneerApprovedDates(pioneerProfile);
+  if (regApproved.length > 0) payload['regularPioneerApprovedDates'] = regApproved;
+
+  return JSON.stringify(payload, null, 0);
 }
 
 @Injectable({ providedIn: 'root' })
@@ -92,12 +120,17 @@ export class OpenRouterService {
               'Never insult, shame, blame, judge, mock, or use harsh or negative labels about the individual. ' +
               'Even when the card shows low activity, gaps, inactivity, or other difficult facts, keep the wording neutral, dignified, and gently positive—' +
               'frame facts as what the record shows (e.g. “the card indicates…”, “reported…”) without criticizing character or commitment. ' +
+              'JSON may include dateOfBirth and dateOfBaptism (ISO YYYY-MM-DD) only when known; if a field is omitted, treat it as unknown and never mention or guess it. ' +
+              'When dateOfBirth appears, it must be stated in the first sentence. When dateOfBaptism appears, it must be stated in the first sentence (together with dateOfBirth when both exist). ' +
+              'When regularPioneerApprovedDates appears (array of approval dates), you may mention it where it fits; if omitted, say nothing about regular pioneer approval dates. ' +
               'Do not include markdown headings or bullet lists; paragraphs only.',
           },
           {
             role: 'user',
             content:
               'Summarize this publisher record for the congregation file. ' +
+              'First sentence: if dateOfBirth and/or dateOfBaptism exist in the JSON, include each present value there in natural wording; if neither key exists, start without birth or baptism. ' +
+              'Never invent birth or baptism dates. ' +
               'Keep the tone respectful and constructive; do not use wording that could embarrass or demean the publisher.\n\n' +
               payload,
           },
