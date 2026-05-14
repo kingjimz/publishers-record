@@ -42,111 +42,8 @@
     }
   </div>
 
-  <!-- Stats cards -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-
-    <button type="button" (click)="onTotalPublishersCardClick()" aria-label="Show all publishers"
-      class="group bg-white rounded-xl border border-gray-200 p-5 shadow-soft text-left hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer">
-      <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-2">
-          <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-base">
-            <i class="bi bi-people-fill"></i>
-          </span>
-          <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Total Publishers</span>
-        </div>
-        <i class="bi bi-chevron-right text-gray-300 group-hover:text-gray-500 transition-colors text-sm"></i>
-      </div>
-      <div class="text-2xl font-bold text-gray-700">{{ totalPublishers }}</div>
-    </button>
-
-    <button type="button" (click)="onRegularPioneersCardClick()" aria-label="Show regular pioneer publishers"
-      class="group bg-white rounded-xl border border-gray-200 p-5 shadow-soft text-left hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer">
-      <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-2">
-          <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-base">
-            <i class="bi bi-person-fill"></i>
-          </span>
-          <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Regular Pioneers</span>
-        </div>
-        <i class="bi bi-chevron-right text-gray-300 group-hover:text-gray-500 transition-colors text-sm"></i>
-      </div>
-      <div class="text-2xl font-bold text-gray-700">{{ regularPioneerCount }}</div>
-    </button>
-
-    <button type="button" (click)="onAuxiliaryPioneersCardClick()" aria-label="Show auxiliary pioneer publishers"
-      class="group bg-white rounded-xl border border-gray-200 p-5 shadow-soft text-left hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer">
-      <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-2">
-          <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-base">
-            <i class="bi bi-person-fill"></i>
-          </span>
-          <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Auxiliary Pioneers</span>
-        </div>
-        <i class="bi bi-chevron-right text-gray-300 group-hover:text-gray-500 transition-colors text-sm"></i>
-      </div>
-      <div class="text-2xl font-bold text-gray-700">{{ auxiliaryPioneerCount }}</div>
-    </button>
-
-    <button type="button" (click)="onEldersCardClick()" aria-label="Show elder publishers"
-      class="group bg-white rounded-xl border border-gray-200 p-5 shadow-soft text-left hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer">
-      <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-2">
-          <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-base">
-            <i class="bi bi-person-fill"></i>
-          </span>
-          <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Elders</span>
-        </div>
-        <i class="bi bi-chevron-right text-gray-300 group-hover:text-gray-500 transition-colors text-sm"></i>
-      </div>
-      <div class="text-2xl font-bold text-gray-700">{{ elderCount }}</div>
-    </button>
-
-    <button type="button" (click)="onMinisterialServantsCardClick()" aria-label="Show ministerial servant publishers"
-      class="group bg-white rounded-xl border border-gray-200 p-5 shadow-soft text-left hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer">
-      <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-2">
-          <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-base">
-            <i class="bi bi-person-fill"></i>
-          </span>
-          <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Ministerial Servants</span>
-        </div>
-        <i class="bi bi-chevron-right text-gray-300 group-hover:text-gray-500 transition-colors text-sm"></i>
-      </div>
-      <div class="text-2xl font-bold text-gray-700">{{ ministerialServantCount }}</div>
-    </button>
-
-    <button type="button" (click)="onUnbaptizedPublishersCardClick()" aria-label="Show unbaptized publishers"
-      class="group bg-white rounded-xl border border-gray-200 p-5 shadow-soft text-left hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer">
-      <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-2">
-          <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-base">
-            <i class="bi bi-person-fill"></i>
-          </span>
-          <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Unbaptized Publishers</span>
-        </div>
-        <i class="bi bi-chevron-right text-gray-300 group-hover:text-gray-500 transition-colors text-sm"></i>
-      </div>
-      <div class="text-2xl font-bold text-gray-700">{{ unbaptizedPublisherCount }}</div>
-    </button>
-
-    <button type="button" (click)="onInactivePublishersCardClick()" aria-label="Show inactive publishers"
-      class="group bg-white rounded-xl border border-gray-200 p-5 shadow-soft text-left hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer">
-      <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-2">
-          <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-base">
-            <i class="bi bi-person-fill-exclamation"></i>
-          </span>
-          <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Inactive Publishers</span>
-        </div>
-        <i class="bi bi-chevron-right text-gray-300 group-hover:text-gray-500 transition-colors text-sm"></i>
-      </div>
-      <div class="text-2xl font-bold text-gray-700">{{ inactivePublisherCount }}</div>
-    </button>
-
-  </div>
-
   <!-- Congregation breakdown chart -->
-  <div class="bg-white rounded-xl border border-gray-200 shadow-soft p-6">
+  <div class="bg-white rounded-xl border border-gray-200 shadow-soft p-6 mb-6">
     <div class="mb-4">
       <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Congregation Breakdown</h2>
       <p class="text-xs text-gray-400 mt-0.5">Active publishers by privilege — {{ supabase.serviceYearLabel() }}</p>
@@ -160,5 +57,108 @@
       </canvas>
     </div>
   </div>
+
+  <!-- Stats cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+      <button type="button" (click)="onTotalPublishersCardClick()" aria-label="Show all publishers"
+        class="group bg-white rounded-xl border border-gray-200 p-5 shadow-soft text-left hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-base">
+              <i class="bi bi-people-fill"></i>
+            </span>
+            <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Total Publishers</span>
+          </div>
+          <i class="bi bi-chevron-right text-gray-300 group-hover:text-gray-500 transition-colors text-sm"></i>
+        </div>
+        <div class="text-2xl font-bold text-gray-700">{{ totalPublishers }}</div>
+      </button>
+
+      <button type="button" (click)="onRegularPioneersCardClick()" aria-label="Show regular pioneer publishers"
+        class="group bg-white rounded-xl border border-gray-200 p-5 shadow-soft text-left hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-base">
+              <i class="bi bi-person-fill"></i>
+            </span>
+            <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Regular Pioneers</span>
+          </div>
+          <i class="bi bi-chevron-right text-gray-300 group-hover:text-gray-500 transition-colors text-sm"></i>
+        </div>
+        <div class="text-2xl font-bold text-gray-700">{{ regularPioneerCount }}</div>
+      </button>
+
+      <button type="button" (click)="onAuxiliaryPioneersCardClick()" aria-label="Show auxiliary pioneer publishers"
+        class="group bg-white rounded-xl border border-gray-200 p-5 shadow-soft text-left hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-base">
+              <i class="bi bi-person-fill"></i>
+            </span>
+            <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Auxiliary Pioneers</span>
+          </div>
+          <i class="bi bi-chevron-right text-gray-300 group-hover:text-gray-500 transition-colors text-sm"></i>
+        </div>
+        <div class="text-2xl font-bold text-gray-700">{{ auxiliaryPioneerCount }}</div>
+      </button>
+
+      <button type="button" (click)="onEldersCardClick()" aria-label="Show elder publishers"
+        class="group bg-white rounded-xl border border-gray-200 p-5 shadow-soft text-left hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-base">
+              <i class="bi bi-person-fill"></i>
+            </span>
+            <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Elders</span>
+          </div>
+          <i class="bi bi-chevron-right text-gray-300 group-hover:text-gray-500 transition-colors text-sm"></i>
+        </div>
+        <div class="text-2xl font-bold text-gray-700">{{ elderCount }}</div>
+      </button>
+
+      <button type="button" (click)="onMinisterialServantsCardClick()" aria-label="Show ministerial servant publishers"
+        class="group bg-white rounded-xl border border-gray-200 p-5 shadow-soft text-left hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-base">
+              <i class="bi bi-person-fill"></i>
+            </span>
+            <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Ministerial Servants</span>
+          </div>
+          <i class="bi bi-chevron-right text-gray-300 group-hover:text-gray-500 transition-colors text-sm"></i>
+        </div>
+        <div class="text-2xl font-bold text-gray-700">{{ ministerialServantCount }}</div>
+      </button>
+
+      <button type="button" (click)="onUnbaptizedPublishersCardClick()" aria-label="Show unbaptized publishers"
+        class="group bg-white rounded-xl border border-gray-200 p-5 shadow-soft text-left hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-base">
+              <i class="bi bi-person-fill"></i>
+            </span>
+            <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Unbaptized Publishers</span>
+          </div>
+          <i class="bi bi-chevron-right text-gray-300 group-hover:text-gray-500 transition-colors text-sm"></i>
+        </div>
+        <div class="text-2xl font-bold text-gray-700">{{ unbaptizedPublisherCount }}</div>
+      </button>
+
+      <button type="button" (click)="onInactivePublishersCardClick()" aria-label="Show inactive publishers"
+        class="group bg-white rounded-xl border border-gray-200 p-5 shadow-soft text-left hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-base">
+              <i class="bi bi-person-fill-exclamation"></i>
+            </span>
+            <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Inactive Publishers</span>
+          </div>
+          <i class="bi bi-chevron-right text-gray-300 group-hover:text-gray-500 transition-colors text-sm"></i>
+        </div>
+        <div class="text-2xl font-bold text-gray-700">{{ inactivePublisherCount }}</div>
+      </button>
+
+    </div>
 
 </div>
