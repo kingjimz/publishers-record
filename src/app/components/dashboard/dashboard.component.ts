@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { BaseChartDirective } from 'ng2-charts';
@@ -8,16 +8,15 @@ import DataLabelsPlugin from 'chartjs-plugin-datalabels';
 
 import { PublisherRecord, SupabaseService } from '../../services/supabase.service';
 import { ToastService } from '../../services/toast.service';
-import { ServiceYearSelectorComponent } from '../service-year-selector/service-year-selector.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, ServiceYearSelectorComponent, BaseChartDirective],
+  imports: [CommonModule, FormsModule, BaseChartDirective],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css',
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent {
   protected recordsLoading = false;
   protected yearRecords: PublisherRecord[] = [];
 
@@ -28,14 +27,10 @@ export class DashboardComponent implements OnInit {
     private readonly cdr: ChangeDetectorRef
   ) {
     Chart.register(DataLabelsPlugin);
-  }
-
-  async ngOnInit(): Promise<void> {
-    await this.loadRecordsForYear();
-  }
-
-  protected async onYearChanged(): Promise<void> {
-    await this.loadRecordsForYear();
+    effect(() => {
+      this.supabase.serviceYear();
+      void this.loadRecordsForYear();
+    });
   }
 
   protected get totalPublishers(): number {

@@ -30,16 +30,6 @@
   <div class="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
     <!-- Main form area -->
     <div class="space-y-6">
-      <!-- Service year selector -->
-      <div class="bg-white rounded-lg border border-gray-200 shadow-soft p-5">
-        <div class="flex flex-wrap items-center gap-4 min-w-0">
-          <app-service-year-selector (yearChanged)="onYearChanged()" />
-          @if (recordsLoading) {
-            <span class="text-sm text-slate-400">Loading...</span>
-          }
-        </div>
-      </div>
-
       <!-- Publisher form -->
       <form class="bg-white rounded-lg border border-gray-200 shadow-soft p-5" (ngSubmit)="onSaveRecord()"
         (input)="onFormInteraction()" (change)="onFormInteraction()"

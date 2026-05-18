@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import {
@@ -10,16 +10,15 @@ import {
 } from '../../services/supabase.service';
 import { ToastService } from '../../services/toast.service';
 import { groupPublishersForSidebar } from '../../utils/group-publishers';
-import { ServiceYearSelectorComponent } from '../service-year-selector/service-year-selector.component';
 
 @Component({
   selector: 'app-add-records',
   standalone: true,
-  imports: [CommonModule, FormsModule, ServiceYearSelectorComponent],
+  imports: [CommonModule, FormsModule],
   templateUrl: './add-records.component.html',
   styleUrl: './add-records.component.css',
 })
-export class AddRecordsComponent implements OnInit {
+export class AddRecordsComponent {
   /** Fixed choices stored as publisher_group in the database. */
   protected static readonly publisherGroupChoices = [
     'Group 1',
@@ -76,15 +75,12 @@ export class AddRecordsComponent implements OnInit {
     protected readonly supabase: SupabaseService,
     private readonly toast: ToastService,
     private readonly cdr: ChangeDetectorRef
-  ) {}
-
-  async ngOnInit(): Promise<void> {
-    await this.loadRecordsForYear();
-  }
-
-  protected async onYearChanged(): Promise<void> {
-    this.sidebarPublisherSearch = '';
-    await this.loadRecordsForYear();
+  ) {
+    effect(() => {
+      this.supabase.serviceYear();
+      this.sidebarPublisherSearch = '';
+      void this.loadRecordsForYear();
+    });
   }
 
   /** Publishers in the sidebar list after applying the search filter. */

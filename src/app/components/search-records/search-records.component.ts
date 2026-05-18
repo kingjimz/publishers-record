@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -23,12 +23,11 @@ import {
 } from '../../utils/publisher-record-print';
 import { buildPublisherServiceYearSummaryParagraph } from '../../utils/publisher-service-year-summary';
 import { environment } from '../../../environments/environment';
-import { ServiceYearSelectorComponent } from '../service-year-selector/service-year-selector.component';
 
 @Component({
   selector: 'app-search-records',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, ServiceYearSelectorComponent],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './search-records.component.html',
   styleUrl: './search-records.component.css',
 })
@@ -68,12 +67,16 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     private readonly cdr: ChangeDetectorRef,
     private readonly route: ActivatedRoute,
     private readonly openRouter: OpenRouterService
-  ) {}
+  ) {
+    effect(() => {
+      this.supabase.serviceYear();
+      this.resetPagination();
+      void this.loadYearRecords();
+      this.cdr.detectChanges();
+    });
+  }
 
   ngOnInit(): void {
-    // Always load the full list for the currently selected service year.
-    void this.loadYearRecords();
-
     this.querySub = this.route.queryParams.subscribe((params) => {
       const q = params['q'];
       const privilege = params['privilege'];
@@ -117,13 +120,6 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     this.expandedPublisher = null;
     this.resetPagination();
     void this.refreshPioneerProfileMap();
-  }
-
-  /** Selected year changed — view filters client-side (search data already loaded). */
-  protected onYearChanged(): void {
-    this.resetPagination();
-    void this.loadYearRecords();
-    this.cdr.detectChanges();
   }
 
   /** All rows returned by cross-year search, narrowed by current query text. */

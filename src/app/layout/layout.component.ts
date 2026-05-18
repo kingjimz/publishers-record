@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
@@ -7,6 +7,11 @@ import { OnboardingWelcomeComponent } from '../components/onboarding-welcome/onb
 import { OnboardingService } from '../services/onboarding.service';
 import { SupabaseService } from '../services/supabase.service';
 import { layoutRouteAnimations } from '../animations/layout-route.animations';
+
+interface Breadcrumb {
+  label: string;
+  url: string | null;
+}
 
 @Component({
   selector: 'app-layout',
@@ -33,8 +38,13 @@ export class LayoutComponent implements OnInit {
    */
   protected readonly routeAnimKey = signal('');
   protected readonly currentToolLabel = signal('Publishers Record');
+  protected readonly breadcrumbs = signal<Breadcrumb[]>([]);
 
   headerMenuOpen = false;
+
+  protected readonly nextYearDisabled = computed(
+    () => this.supabase.serviceYear() >= SupabaseService.allowedMaxServiceYearStart()
+  );
 
   constructor(supabaseService: SupabaseService) {
     this.supabase = supabaseService;
@@ -47,6 +57,7 @@ export class LayoutComponent implements OnInit {
       .subscribe(() => {
         this.routeAnimKey.set(this.animationKeyFromRouter());
         this.currentToolLabel.set(this.toolLabelFromRouter());
+        this.breadcrumbs.set(this.breadcrumbsFromRouter());
       });
   }
 
@@ -55,6 +66,7 @@ export class LayoutComponent implements OnInit {
     this.onboarding.tryAutoOpen();
     this.routeAnimKey.set(this.animationKeyFromRouter());
     this.currentToolLabel.set(this.toolLabelFromRouter());
+    this.breadcrumbs.set(this.breadcrumbsFromRouter());
   }
 
   toggleHeaderMenu(): void {
@@ -78,7 +90,16 @@ export class LayoutComponent implements OnInit {
     return this.currentToolLabel() === 'Attendance';
   }
 
-  /** Deepest activated route’s `data.animation` (same intent as RouterOutlet.activatedRouteData). */
+  protected onHeaderPreviousYear(): void {
+    this.supabase.previousServiceYear();
+  }
+
+  protected onHeaderNextYear(): void {
+    if (this.nextYearDisabled()) return;
+    this.supabase.nextServiceYear();
+  }
+
+  /** Deepest activated route's `data.animation` (same intent as RouterOutlet.activatedRouteData). */
   private animationKeyFromRouter(): string {
     let route = this.router.routerState.root;
     while (route.firstChild) {
@@ -95,5 +116,22 @@ export class LayoutComponent implements OnInit {
     }
     const tool = route.snapshot.data['tool'];
     return tool === 'attendance' ? 'Attendance Tracker' : 'Publishers Record';
+  }
+
+  private breadcrumbsFromRouter(): Breadcrumb[] {
+    const url = this.router.url.split('?')[0];
+    if (url.includes('/publishers-record/add-records')) {
+      return [
+        { label: 'Dashboard', url: '/publishers-record/dashboard' },
+        { label: 'Add Records', url: null },
+      ];
+    }
+    if (url.includes('/publishers-record/search-records')) {
+      return [
+        { label: 'Dashboard', url: '/publishers-record/dashboard' },
+        { label: 'Search Records', url: null },
+      ];
+    }
+    return [];
   }
 }
