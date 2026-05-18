@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 
 import {
@@ -28,7 +28,7 @@ import { ServiceYearSelectorComponent } from '../service-year-selector/service-y
 @Component({
   selector: 'app-search-records',
   standalone: true,
-  imports: [CommonModule, FormsModule, ServiceYearSelectorComponent],
+  imports: [CommonModule, FormsModule, RouterLink, ServiceYearSelectorComponent],
   templateUrl: './search-records.component.html',
   styleUrl: './search-records.component.css',
 })
