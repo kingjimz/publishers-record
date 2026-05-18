@@ -2,23 +2,23 @@
   <!-- Welcome block -->
   <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6 md:mb-8">
     <div>
-      <h1 class="mb-1 text-3xl font-semibold text-slate-900 tracking-tight">Dashboard</h1>
+      <h1 class="mb-1 text-3xl font-semibold text-slate-900 dark:text-slate-100 tracking-tight">Dashboard</h1>
       @if (supabase.userEmail()) {
-        <p class="text-slate-500 text-sm">Welcome back. Signed in as {{ supabase.userEmail() }}.</p>
+        <p class="text-slate-500 dark:text-slate-400 text-sm">Welcome back. Signed in as {{ supabase.userEmail() }}.</p>
       }
     </div>
     <form (ngSubmit)="onDashboardSearch()" class="w-full sm:w-96 shrink-0">
       <div class="relative">
-        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none"
+        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-slate-500 pointer-events-none"
           fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
         <input type="text"
-          class="w-full pl-10 pr-24 py-3 border border-slate-200 bg-white text-slate-900 rounded-lg shadow-soft focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none transition-all text-sm"
+          class="w-full pl-10 pr-24 py-3 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-400 rounded-lg shadow-soft focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none transition-all text-sm"
           [(ngModel)]="searchQuery" name="dashboardSearch" placeholder="Search publisher..." autocomplete="off" />
         @if (searchQuery) {
           <button type="button" (click)="onClearSearch()"
-            class="absolute right-[5.5rem] top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            class="absolute right-[5.5rem] top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-600 transition-colors"
             aria-label="Clear search">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -36,15 +36,15 @@
 
   @if (recordsLoading) {
     <div class="mb-6">
-      <span class="text-sm text-slate-400">Loading...</span>
+      <span class="text-sm text-slate-400 dark:text-slate-500">Loading...</span>
     </div>
   }
 
   <!-- Congregation breakdown chart -->
-  <div class="bg-white rounded-xl border border-gray-200 shadow-soft p-6 mb-6">
+  <div class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-soft p-6 mb-6">
     <div class="mb-4">
-      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Congregation Breakdown</h2>
-      <p class="text-xs text-gray-400 mt-0.5">Active publishers by privilege — {{ supabase.serviceYearLabel() }}</p>
+      <h2 class="text-sm font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wide">Congregation Breakdown</h2>
+      <p class="text-xs text-gray-400 dark:text-slate-500 mt-0.5">Active publishers by privilege — {{ supabase.serviceYearLabel() }}</p>
     </div>
     <div class="h-80 relative z-10">
       <canvas baseChart
@@ -60,101 +60,101 @@
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
       <button type="button" (click)="onTotalPublishersCardClick()" aria-label="Show all publishers"
-        class="group bg-white rounded-xl border border-gray-200 p-5 shadow-soft text-left hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer">
+        class="group bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-5 shadow-soft text-left hover:border-gray-300 dark:hover:border-slate-600 hover:shadow-md transition-all duration-200 cursor-pointer">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-2">
-            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-base">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 text-base">
               <i class="bi bi-people-fill"></i>
             </span>
-            <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Total Publishers</span>
+            <span class="text-xs font-medium text-gray-400 dark:text-slate-500 uppercase tracking-wide">Total Publishers</span>
           </div>
-          <i class="bi bi-chevron-right text-gray-300 group-hover:text-gray-500 transition-colors text-sm"></i>
+          <i class="bi bi-chevron-right text-gray-300 dark:text-slate-600 group-hover:text-gray-500 dark:group-hover:text-slate-400 transition-colors text-sm"></i>
         </div>
-        <div class="text-2xl font-bold text-gray-700">{{ totalPublishers }}</div>
+        <div class="text-2xl font-bold text-gray-700 dark:text-slate-200">{{ totalPublishers }}</div>
       </button>
 
       <button type="button" (click)="onRegularPioneersCardClick()" aria-label="Show regular pioneer publishers"
-        class="group bg-white rounded-xl border border-gray-200 p-5 shadow-soft text-left hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer">
+        class="group bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-5 shadow-soft text-left hover:border-gray-300 dark:hover:border-slate-600 hover:shadow-md transition-all duration-200 cursor-pointer">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-2">
-            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-base">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 text-base">
               <i class="bi bi-person-fill"></i>
             </span>
-            <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Regular Pioneers</span>
+            <span class="text-xs font-medium text-gray-400 dark:text-slate-500 uppercase tracking-wide">Regular Pioneers</span>
           </div>
-          <i class="bi bi-chevron-right text-gray-300 group-hover:text-gray-500 transition-colors text-sm"></i>
+          <i class="bi bi-chevron-right text-gray-300 dark:text-slate-600 group-hover:text-gray-500 dark:group-hover:text-slate-400 transition-colors text-sm"></i>
         </div>
-        <div class="text-2xl font-bold text-gray-700">{{ regularPioneerCount }}</div>
+        <div class="text-2xl font-bold text-gray-700 dark:text-slate-200">{{ regularPioneerCount }}</div>
       </button>
 
       <button type="button" (click)="onAuxiliaryPioneersCardClick()" aria-label="Show auxiliary pioneer publishers"
-        class="group bg-white rounded-xl border border-gray-200 p-5 shadow-soft text-left hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer">
+        class="group bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-5 shadow-soft text-left hover:border-gray-300 dark:hover:border-slate-600 hover:shadow-md transition-all duration-200 cursor-pointer">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-2">
-            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-base">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 text-base">
               <i class="bi bi-person-fill"></i>
             </span>
-            <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Auxiliary Pioneers</span>
+            <span class="text-xs font-medium text-gray-400 dark:text-slate-500 uppercase tracking-wide">Auxiliary Pioneers</span>
           </div>
-          <i class="bi bi-chevron-right text-gray-300 group-hover:text-gray-500 transition-colors text-sm"></i>
+          <i class="bi bi-chevron-right text-gray-300 dark:text-slate-600 group-hover:text-gray-500 dark:group-hover:text-slate-400 transition-colors text-sm"></i>
         </div>
-        <div class="text-2xl font-bold text-gray-700">{{ auxiliaryPioneerCount }}</div>
+        <div class="text-2xl font-bold text-gray-700 dark:text-slate-200">{{ auxiliaryPioneerCount }}</div>
       </button>
 
       <button type="button" (click)="onEldersCardClick()" aria-label="Show elder publishers"
-        class="group bg-white rounded-xl border border-gray-200 p-5 shadow-soft text-left hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer">
+        class="group bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-5 shadow-soft text-left hover:border-gray-300 dark:hover:border-slate-600 hover:shadow-md transition-all duration-200 cursor-pointer">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-2">
-            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-base">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 text-base">
               <i class="bi bi-person-fill"></i>
             </span>
-            <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Elders</span>
+            <span class="text-xs font-medium text-gray-400 dark:text-slate-500 uppercase tracking-wide">Elders</span>
           </div>
-          <i class="bi bi-chevron-right text-gray-300 group-hover:text-gray-500 transition-colors text-sm"></i>
+          <i class="bi bi-chevron-right text-gray-300 dark:text-slate-600 group-hover:text-gray-500 dark:group-hover:text-slate-400 transition-colors text-sm"></i>
         </div>
-        <div class="text-2xl font-bold text-gray-700">{{ elderCount }}</div>
+        <div class="text-2xl font-bold text-gray-700 dark:text-slate-200">{{ elderCount }}</div>
       </button>
 
       <button type="button" (click)="onMinisterialServantsCardClick()" aria-label="Show ministerial servant publishers"
-        class="group bg-white rounded-xl border border-gray-200 p-5 shadow-soft text-left hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer">
+        class="group bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-5 shadow-soft text-left hover:border-gray-300 dark:hover:border-slate-600 hover:shadow-md transition-all duration-200 cursor-pointer">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-2">
-            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-base">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 text-base">
               <i class="bi bi-person-fill"></i>
             </span>
-            <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Ministerial Servants</span>
+            <span class="text-xs font-medium text-gray-400 dark:text-slate-500 uppercase tracking-wide">Ministerial Servants</span>
           </div>
-          <i class="bi bi-chevron-right text-gray-300 group-hover:text-gray-500 transition-colors text-sm"></i>
+          <i class="bi bi-chevron-right text-gray-300 dark:text-slate-600 group-hover:text-gray-500 dark:group-hover:text-slate-400 transition-colors text-sm"></i>
         </div>
-        <div class="text-2xl font-bold text-gray-700">{{ ministerialServantCount }}</div>
+        <div class="text-2xl font-bold text-gray-700 dark:text-slate-200">{{ ministerialServantCount }}</div>
       </button>
 
       <button type="button" (click)="onUnbaptizedPublishersCardClick()" aria-label="Show unbaptized publishers"
-        class="group bg-white rounded-xl border border-gray-200 p-5 shadow-soft text-left hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer">
+        class="group bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-5 shadow-soft text-left hover:border-gray-300 dark:hover:border-slate-600 hover:shadow-md transition-all duration-200 cursor-pointer">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-2">
-            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-base">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 text-base">
               <i class="bi bi-person-fill"></i>
             </span>
-            <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Unbaptized Publishers</span>
+            <span class="text-xs font-medium text-gray-400 dark:text-slate-500 uppercase tracking-wide">Unbaptized Publishers</span>
           </div>
-          <i class="bi bi-chevron-right text-gray-300 group-hover:text-gray-500 transition-colors text-sm"></i>
+          <i class="bi bi-chevron-right text-gray-300 dark:text-slate-600 group-hover:text-gray-500 dark:group-hover:text-slate-400 transition-colors text-sm"></i>
         </div>
-        <div class="text-2xl font-bold text-gray-700">{{ unbaptizedPublisherCount }}</div>
+        <div class="text-2xl font-bold text-gray-700 dark:text-slate-200">{{ unbaptizedPublisherCount }}</div>
       </button>
 
       <button type="button" (click)="onInactivePublishersCardClick()" aria-label="Show inactive publishers"
-        class="group bg-white rounded-xl border border-gray-200 p-5 shadow-soft text-left hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer">
+        class="group bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-5 shadow-soft text-left hover:border-gray-300 dark:hover:border-slate-600 hover:shadow-md transition-all duration-200 cursor-pointer">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-2">
-            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-base">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 text-base">
               <i class="bi bi-person-fill-exclamation"></i>
             </span>
-            <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">Inactive Publishers</span>
+            <span class="text-xs font-medium text-gray-400 dark:text-slate-500 uppercase tracking-wide">Inactive Publishers</span>
           </div>
-          <i class="bi bi-chevron-right text-gray-300 group-hover:text-gray-500 transition-colors text-sm"></i>
+          <i class="bi bi-chevron-right text-gray-300 dark:text-slate-600 group-hover:text-gray-500 dark:group-hover:text-slate-400 transition-colors text-sm"></i>
         </div>
-        <div class="text-2xl font-bold text-gray-700">{{ inactivePublisherCount }}</div>
+        <div class="text-2xl font-bold text-gray-700 dark:text-slate-200">{{ inactivePublisherCount }}</div>
       </button>
 
     </div>

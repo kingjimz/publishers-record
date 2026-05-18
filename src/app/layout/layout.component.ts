@@ -6,6 +6,7 @@ import { filter } from 'rxjs';
 import { OnboardingWelcomeComponent } from '../components/onboarding-welcome/onboarding-welcome.component';
 import { OnboardingService } from '../services/onboarding.service';
 import { SupabaseService } from '../services/supabase.service';
+import { ThemeService } from '../services/theme.service';
 import { layoutRouteAnimations } from '../animations/layout-route.animations';
 
 interface Breadcrumb {
@@ -30,6 +31,7 @@ interface Breadcrumb {
 export class LayoutComponent implements OnInit {
   readonly supabase: SupabaseService;
   protected readonly onboarding = inject(OnboardingService);
+  protected readonly theme = inject(ThemeService);
   private readonly router = inject(Router);
 
   /**

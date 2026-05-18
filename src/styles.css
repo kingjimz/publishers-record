@@ -24,6 +24,7 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+
   /* Hide scrollbars while keeping scroll (wheel, touch, keyboard) working. */
   * {
     scrollbar-width: none; /* Firefox */
