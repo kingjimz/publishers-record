@@ -51,6 +51,7 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
   protected yearLoading = false;
   protected selectedGroup = '';
   protected selectedPrivilege = '';
+  protected fromDashboardFilter = false;
   protected query = '';
   protected hasSearched = false;
   protected records: PublisherRecord[] = [];
@@ -81,6 +82,7 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
       const q = params['q'];
       const privilege = params['privilege'];
       this.selectedPrivilege = this.parsePrivilege(privilege);
+      this.fromDashboardFilter = privilege != null && String(privilege).trim() !== '';
 
       if (q == null || String(q).trim() === '') {
         this.query = '';
@@ -129,14 +131,15 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     return this.records.filter((r) => r.publisher_name.toLowerCase().includes(text));
   }
 
-  /** Rows shown in the list: selected service year only (search still used all years). */
-  protected get recordsForSelectedYear(): PublisherRecord[] {
-    const y = this.supabase.serviceYear();
-    return this.filteredRecords.filter((r) => r.service_year_start === y);
-  }
-
-  protected get recordsForSelectedYearSorted(): PublisherRecord[] {
-    return sortPublishersByGroupThenName(this.recordsForSelectedYear);
+  /** All search results sorted: current service year first, then newest to oldest, then by name. */
+  protected get filteredRecordsByYearDesc(): PublisherRecord[] {
+    const currentYear = this.supabase.serviceYear();
+    return [...this.filteredRecords].sort((a, b) => {
+      if (a.service_year_start === currentYear && b.service_year_start !== currentYear) return -1;
+      if (b.service_year_start === currentYear && a.service_year_start !== currentYear) return 1;
+      if (b.service_year_start !== a.service_year_start) return b.service_year_start - a.service_year_start;
+      return (a.publisher_name ?? '').localeCompare(b.publisher_name ?? '');
+    });
   }
 
   protected get yearRecordsSorted(): PublisherRecord[] {
@@ -144,7 +147,7 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
   }
 
   protected get recordsForListBeforeGroupFilter(): PublisherRecord[] {
-    const source = this.hasSearched ? this.recordsForSelectedYearSorted : this.yearRecordsSorted;
+    const source = this.hasSearched ? this.filteredRecordsByYearDesc : this.yearRecordsSorted;
     if (this.selectedPrivilege === 'all') {
       return source;
     }
@@ -274,9 +277,18 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
     return source.filter((r) => displayPublisherGroupLabel(r) === this.selectedGroup);
   }
 
-  /** Rows with a group heading inserted when the group label changes. */
+  /** Rows with a heading inserted when the section changes. In search mode sections are service years; otherwise publisher groups. */
   protected get publisherListItems(): { record: PublisherRecord; groupHeading: string | null }[] {
     const records = this.filteredByGroupRecords;
+    if (this.hasSearched) {
+      return records.map((record, i) => ({
+        record,
+        groupHeading:
+          i === 0 || records[i - 1]!.service_year_start !== record.service_year_start
+            ? this.serviceYearRangeLabel(record.service_year_start)
+            : null,
+      }));
+    }
     return records.map((record, i) => ({
       record,
       groupHeading:
@@ -902,7 +914,7 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
 
   /** Names on the current list (full year when not searching; in-year matches when searching). */
   private listRecordsForPioneerHydration(): PublisherRecord[] {
-    return this.hasSearched ? this.recordsForSelectedYearSorted : this.yearRecordsSorted;
+    return this.hasSearched ? this.filteredRecordsByYearDesc : this.yearRecordsSorted;
   }
 
   private async refreshPioneerProfileMap(): Promise<void> {

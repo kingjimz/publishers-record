@@ -41,6 +41,7 @@ export class LayoutComponent implements OnInit {
   protected readonly breadcrumbs = signal<Breadcrumb[]>([]);
 
   headerMenuOpen = false;
+  toolsMenuOpen = false;
 
   protected readonly nextYearDisabled = computed(
     () => this.supabase.serviceYear() >= SupabaseService.allowedMaxServiceYearStart()
@@ -75,6 +76,15 @@ export class LayoutComponent implements OnInit {
 
   closeHeaderMenu(): void {
     this.headerMenuOpen = false;
+  }
+
+  toggleToolsMenu(): void {
+    this.toolsMenuOpen = !this.toolsMenuOpen;
+    if (this.toolsMenuOpen) this.headerMenuOpen = false;
+  }
+
+  closeToolsMenu(): void {
+    this.toolsMenuOpen = false;
   }
 
   async onSignOut(): Promise<void> {
