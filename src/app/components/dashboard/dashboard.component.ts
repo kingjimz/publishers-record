@@ -70,56 +70,28 @@ export class DashboardComponent implements OnInit {
 
   protected searchQuery = '';
 
-  protected get donutChartData(): ChartData<'doughnut'> {
-    return {
-      labels: ['Elders', 'Ministerial Servants', 'Regular Pioneers', 'Auxiliary Pioneers', 'Unbaptized Publishers', 'Other Active'],
-      datasets: [{
-        data: [
-          this.elderCount,
-          this.ministerialServantCount,
-          this.regularPioneerCount,
-          this.auxiliaryPioneerCount,
-          this.unbaptizedPublisherCount,
-          Math.max(0, this.totalPublishers - this.elderCount - this.ministerialServantCount - this.regularPioneerCount - this.auxiliaryPioneerCount - this.unbaptizedPublisherCount),
-        ],
-        backgroundColor: ['#6366f1', '#818cf8', '#a5b4fc', '#c7d7fe', '#e0e9ff', '#e5e7eb'],
-        borderWidth: 2,
-        borderColor: '#fff',
-        hoverOffset: 6,
-      }],
-    };
-  }
+  protected donutChartData: ChartData<'doughnut'> = this.buildDonutChartData();
 
-  protected get centerTextPlugin() {
-    const total = this.totalPublishers;
-    return {
-      id: 'centerText',
-      afterDatasetsDraw: (chart: Chart) => {
-        const { ctx, chartArea: { left, top, right, bottom } } = chart;
-        const cx = (left + right) / 2;
-        const cy = (top + bottom) / 2;
-        ctx.save();
-
-        // Icon
-        ctx.font = '22px serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('👥', cx, cy - 22);
-
-        // Count
-        ctx.font = 'bold 30px Poppins, sans-serif';
-        ctx.fillStyle = '#374151';
-        ctx.fillText(String(total), cx, cy + 6);
-
-        // Sub-label
-        ctx.font = '12px Poppins, sans-serif';
-        ctx.fillStyle = '#9ca3af';
-        ctx.fillText('Active', cx, cy + 28);
-
-        ctx.restore();
-      },
-    };
-  }
+  protected readonly centerTextPlugin = {
+    id: 'centerText',
+    afterDatasetsDraw: (chart: Chart) => {
+      const { ctx, chartArea: { left, top, right, bottom } } = chart;
+      const cx = (left + right) / 2;
+      const cy = (top + bottom) / 2;
+      ctx.save();
+      ctx.font = '22px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('👥', cx, cy - 22);
+      ctx.font = 'bold 30px Poppins, sans-serif';
+      ctx.fillStyle = '#374151';
+      ctx.fillText(String(this.totalPublishers), cx, cy + 6);
+      ctx.font = '12px Poppins, sans-serif';
+      ctx.fillStyle = '#9ca3af';
+      ctx.fillText('Active', cx, cy + 28);
+      ctx.restore();
+    },
+  };
 
   protected readonly connectorLinesPlugin = {
     id: 'doughnutConnectors',
@@ -151,6 +123,8 @@ export class DashboardComponent implements OnInit {
       });
     },
   };
+
+  protected readonly chartPlugins = [this.connectorLinesPlugin, this.centerTextPlugin];
 
   protected readonly donutChartOptions: ChartOptions<'doughnut'> = {
     responsive: true,
@@ -262,6 +236,7 @@ export class DashboardComponent implements OnInit {
       this.yearRecords = await this.supabase.getPublisherRecordsByServiceYear(
         this.supabase.serviceYear()
       );
+      this.donutChartData = this.buildDonutChartData();
     } catch (err) {
       this.toast.showError(
         err instanceof Error ? err.message : 'Failed to load service year records.'
@@ -270,5 +245,24 @@ export class DashboardComponent implements OnInit {
       this.recordsLoading = false;
       this.cdr.detectChanges();
     }
+  }
+
+  private buildDonutChartData(): ChartData<'doughnut'> {
+    const elders = this.elderCount;
+    const ms = this.ministerialServantCount;
+    const rp = this.regularPioneerCount;
+    const ap = this.auxiliaryPioneerCount;
+    const ubp = this.unbaptizedPublisherCount;
+    const other = Math.max(0, this.totalPublishers - elders - ms - rp - ap - ubp);
+    return {
+      labels: ['Elders', 'Ministerial Servants', 'Regular Pioneers', 'Auxiliary Pioneers', 'Unbaptized Publishers', 'Other Active'],
+      datasets: [{
+        data: [elders, ms, rp, ap, ubp, other],
+        backgroundColor: ['#6366f1', '#818cf8', '#a5b4fc', '#c7d7fe', '#e0e9ff', '#e5e7eb'],
+        borderWidth: 2,
+        borderColor: '#fff',
+        hoverOffset: 6,
+      }],
+    };
   }
 }
