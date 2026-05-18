@@ -587,23 +587,18 @@ export class SearchRecordsComponent implements OnInit, OnDestroy {
   protected printRecord(record: PublisherRecord, event?: Event): void {
     event?.stopPropagation();
     const html = buildPublisherRecordPrintDocument(record);
-    const w = window.open('', '_blank', 'noopener,noreferrer,width=960,height=1200');
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, '_blank');
     if (!w) {
       this.toast.showError('Pop-up blocked. Allow pop-ups to print this record.');
+      URL.revokeObjectURL(url);
       return;
     }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-    const runPrint = (): void => {
-      try {
-        w.print();
-      } catch {
-        /* ignore */
-      }
-    };
-    setTimeout(runPrint, 300);
+    w.addEventListener('load', () => {
+      try { w.print(); } catch { /* ignore */ }
+      URL.revokeObjectURL(url);
+    });
   }
 
   /** Downloads the same layout as a standalone HTML file (open in browser or print). */
