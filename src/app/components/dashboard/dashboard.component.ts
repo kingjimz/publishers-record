@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, effect } from '@angular/core';
+import { ChangeDetectorRef, Component, effect, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { BaseChartDirective } from 'ng2-charts';
@@ -8,6 +8,7 @@ import DataLabelsPlugin from 'chartjs-plugin-datalabels';
 
 import { PublisherRecord, SupabaseService } from '../../services/supabase.service';
 import { ToastService } from '../../services/toast.service';
+import { ThemeService } from '../../services/theme.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -20,6 +21,8 @@ export class DashboardComponent {
   protected recordsLoading = false;
   protected yearRecords: PublisherRecord[] = [];
 
+  protected readonly theme = inject(ThemeService);
+
   constructor(
     protected readonly supabase: SupabaseService,
     private readonly router: Router,
@@ -30,6 +33,11 @@ export class DashboardComponent {
     effect(() => {
       this.supabase.serviceYear();
       void this.loadRecordsForYear();
+    });
+    effect(() => {
+      this.theme.isDark();
+      this.donutChartData = this.buildDonutChartData();
+      this.cdr.detectChanges();
     });
   }
 
@@ -70,6 +78,7 @@ export class DashboardComponent {
   protected readonly centerTextPlugin = {
     id: 'centerText',
     afterDatasetsDraw: (chart: Chart) => {
+      const isDark = document.documentElement.classList.contains('dark');
       const { ctx, chartArea: { left, top, right, bottom } } = chart;
       const cx = (left + right) / 2;
       const cy = (top + bottom) / 2;
@@ -79,10 +88,10 @@ export class DashboardComponent {
       ctx.textBaseline = 'middle';
       ctx.fillText('👥', cx, cy - 22);
       ctx.font = 'bold 30px Poppins, sans-serif';
-      ctx.fillStyle = '#374151';
+      ctx.fillStyle = isDark ? '#f1f5f9' : '#374151';
       ctx.fillText(String(this.totalPublishers), cx, cy + 6);
       ctx.font = '12px Poppins, sans-serif';
-      ctx.fillStyle = '#9ca3af';
+      ctx.fillStyle = isDark ? '#94a3b8' : '#9ca3af';
       ctx.fillText('Active', cx, cy + 28);
       ctx.restore();
     },
@@ -164,7 +173,7 @@ export class DashboardComponent {
           const label = ctx.chart.data.labels?.[ctx.dataIndex] ?? '';
           return `${label}: ${value}`;
         },
-        color: '#374151',
+        color: () => document.documentElement.classList.contains('dark') ? '#cbd5e1' : '#374151',
         font: { size: 11, family: 'Poppins', weight: 'bold' },
         textAlign: 'center',
       },
@@ -255,7 +264,7 @@ export class DashboardComponent {
         data: [elders, ms, rp, ap, ubp, other],
         backgroundColor: ['#6366f1', '#818cf8', '#a5b4fc', '#c7d7fe', '#e0e9ff', '#e5e7eb'],
         borderWidth: 2,
-        borderColor: '#fff',
+        borderColor: document.documentElement.classList.contains('dark') ? '#1e293b' : '#fff',
         hoverOffset: 6,
       }],
     };
