@@ -36,6 +36,17 @@
         [attr.aria-busy]="saving">
         <h2 class="text-lg font-medium text-gray-900 dark:text-slate-100 tracking-tight mb-4">Publisher Information</h2>
 
+        @if (prefillMode) {
+          <div class="mb-4 rounded-lg border border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 flex items-center gap-3">
+            <i class="bi bi-lock-fill text-amber-500 dark:text-amber-400 shrink-0 text-sm"></i>
+            <div>
+              <p class="text-sm font-medium text-amber-800 dark:text-amber-200">Apply mode — profile locked</p>
+              <p class="text-xs text-amber-700/80 dark:text-amber-300/80 mt-0.5">Only monthly fields will be saved. Publisher profile cannot be changed in this mode.</p>
+            </div>
+          </div>
+        }
+
+        <fieldset [disabled]="prefillMode" class="border-0 p-0 m-0 min-w-0" [class.opacity-50]="prefillMode" [class.pointer-events-none]="prefillMode">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Name <span class="text-red-500">*</span></label>
@@ -296,8 +307,10 @@
           }
         </div>
 
+        </fieldset>
+
         <!-- Monthly records table -->
-        <h3 class="text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">Monthly Records</h3>
+        <h3 #monthlySection class="text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">Monthly Records</h3>
         <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-slate-700 mb-5">
           <table class="w-full min-w-[700px]">
             <thead>
@@ -312,7 +325,8 @@
             </thead>
             <tbody>
               @for (row of monthlyRecords; track row.month) {
-                <tr class="border-t border-gray-200 dark:border-slate-700">
+                <tr class="border-t border-gray-200 dark:border-slate-700"
+                  [class.prefill-highlight]="row.month === prefillMonth">
                   <td class="py-2 px-3 text-sm text-gray-900 dark:text-slate-100 font-medium">{{ row.month }}</td>
                   <td class="text-center py-2 px-3">
                     <input type="checkbox" class="rounded border-gray-300 dark:border-slate-600 text-primary-600 focus:ring-primary-500"

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, effect } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, ViewChild, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import {
@@ -67,9 +67,22 @@ export class AddRecordsComponent {
   /** JSON snapshot of last loaded/saved payload; null = new unsaved entry (only name required). */
   private editBaselineJson: string | null = null;
 
+  @ViewChild('monthlySection') private monthlySectionRef?: ElementRef<HTMLElement>;
+
+  /** Source record captured when navigating from Apply — profile fields are locked while set. */
+  private prefillSourceRecord: PublisherRecord | null = null;
+
+  /** Month name pre-filled from an applied report, used to highlight the row. */
+  protected prefillMonth: string | null = null;
+
   /** True when we loaded/edit an existing publisher (sidebar selection or after saving). */
   protected get hasSelectedPublisher(): boolean {
     return this.editBaselineJson !== null;
+  }
+
+  /** True when the form was opened via Apply — only monthly fields are editable. */
+  protected get prefillMode(): boolean {
+    return this.prefillSourceRecord !== null;
   }
 
   constructor(
@@ -282,7 +295,9 @@ export class AddRecordsComponent {
       const payload = this.buildSavePayload();
 
       await this.supabase.upsertPublisherRecord(payload);
-      await this.supabase.upsertPublisherPioneerProfile(this.buildPioneerProfilePayload());
+      if (!this.prefillMode) {
+        await this.supabase.upsertPublisherPioneerProfile(this.buildPioneerProfilePayload());
+      }
       await this.loadRecordsForYear();
       this.onResetForm();
       this.toast.showSuccess(`Record saved for ${payload.publisher_name}.`);
@@ -356,6 +371,8 @@ export class AddRecordsComponent {
     this.regularPioneerPeriods = [{ approvedOn: '', stoppedOn: '' }];
     this.monthlyRecords = this.createDefaultMonths();
     this.editBaselineJson = null;
+    this.prefillSourceRecord = null;
+    this.prefillMonth = null;
     this.toast.dismiss();
     this.cdr.markForCheck();
   }
@@ -386,9 +403,11 @@ export class AddRecordsComponent {
     );
 
     if (match) {
+      this.prefillSourceRecord = match;
       await this.onEditRecord(match);
       this.toast.dismiss();
     } else {
+      this.prefillSourceRecord = null;
       this.publisherName = intent.publisherName;
     }
 
@@ -399,15 +418,32 @@ export class AddRecordsComponent {
         if (intent.bibleStudies !== null) monthRow.bibleStudies = intent.bibleStudies;
         monthRow.sharedInMinistry = intent.sharedInMinistry;
       }
+      this.prefillMonth = intent.month;
     }
 
     this.toast.showSuccess(
       `${intent.month} report pre-filled for ${intent.publisherName}.`
     );
     this.cdr.detectChanges();
+    setTimeout(() => {
+      this.monthlySectionRef?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   }
 
   private buildSavePayload(): PublisherRecord {
+    const months = this.monthlyRecords.map((item) => ({
+      month: item.month,
+      sharedInMinistry: item.sharedInMinistry,
+      bibleStudies: this.coerceNullableNumber(item.bibleStudies),
+      auxiliaryPioneer: item.auxiliaryPioneer,
+      hours: this.coerceNullableNumber(item.hours),
+      remarks: item.remarks?.trim() ?? '',
+    }));
+
+    if (this.prefillSourceRecord) {
+      return { ...this.prefillSourceRecord, months };
+    }
+
     const publisherName = this.publisherName.trim();
     const groupTrimmed = this.publisherGroup.trim();
     return {
@@ -427,14 +463,7 @@ export class AddRecordsComponent {
       special_pioneer: this.specialPioneer,
       field_missionary: this.fieldMissionary,
       inactive: this.inactive,
-      months: this.monthlyRecords.map((item) => ({
-        month: item.month,
-        sharedInMinistry: item.sharedInMinistry,
-        bibleStudies: this.coerceNullableNumber(item.bibleStudies),
-        auxiliaryPioneer: item.auxiliaryPioneer,
-        hours: this.coerceNullableNumber(item.hours),
-        remarks: item.remarks?.trim() ?? '',
-      })),
+      months,
     };
   }
 
