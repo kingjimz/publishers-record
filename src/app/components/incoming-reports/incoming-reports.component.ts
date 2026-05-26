@@ -182,9 +182,7 @@ export class IncomingReportsComponent implements OnInit {
   }
 
   protected publisherName(report: SubmittedReport): string {
-    const a = report.author;
-    if (!a) return 'Unknown';
-    return [a.last_name, a.first_name].filter(Boolean).join(', ') || 'Unknown';
+    return [report.last_name, report.first_name].filter(Boolean).join(', ') || 'Unknown';
   }
 
   protected formatDate(dateStr: string | null): string {

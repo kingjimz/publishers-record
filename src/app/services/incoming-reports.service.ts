@@ -4,14 +4,15 @@ import { environment } from '../../environments/environment';
 
 export interface SubmittedReport {
   id: string;
-  title: string;
   report_date: string | null;
   hours: number | null;
   number_of_bs: number | null;
   is_shared_ministry: boolean;
   created_at: string;
-  group: { id: string; name: string } | null;
-  author: { first_name: string | null; last_name: string | null } | null;
+  group_id: string | null;
+  group_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
 }
 
 export interface GroupedReports {
@@ -47,12 +48,10 @@ export class IncomingReportsService {
     const nextM = m === 12 ? 1 : m + 1;
     const end = `${nextY}-${String(nextM).padStart(2, '0')}-01`;
 
-    const { data, error } = await this.client
-      .from('submitted_reports')
-      .select('id,title,report_date,hours,number_of_bs,is_shared_ministry,created_at,group:groups(id,name),author:profiles!user_id(first_name,last_name)')
-      .gte('report_date', start)
-      .lt('report_date', end)
-      .order('report_date', { ascending: false });
+    const { data, error } = await this.client.rpc(
+      'get_submitted_reports_for_secretary',
+      { p_start: start, p_end: end }
+    );
 
     if (error) throw error;
 
@@ -60,8 +59,8 @@ export class IncomingReportsService {
 
     for (const raw of (data ?? [])) {
       const report = raw as unknown as SubmittedReport;
-      const groupId = report.group?.id ?? 'ungrouped';
-      const groupName = report.group?.name ?? 'No Group';
+      const groupId = report.group_id ?? 'ungrouped';
+      const groupName = report.group_name ?? 'No Group';
 
       if (!groupMap.has(groupId)) {
         groupMap.set(groupId, { groupId, groupName, reports: [], totalHours: 0, totalBs: 0 });
