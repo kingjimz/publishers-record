@@ -1,5 +1,6 @@
 import { Injectable, signal } from '@angular/core';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { Subject } from 'rxjs';
+import { createClient, RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
 
 export interface SubmittedReport {
@@ -26,9 +27,13 @@ export interface GroupedReports {
 @Injectable({ providedIn: 'root' })
 export class IncomingReportsService {
   private readonly client: SupabaseClient;
+  private channel: RealtimeChannel | null = null;
 
   private readonly _pendingCount = signal<number | null>(null);
   readonly pendingCount = this._pendingCount.asReadonly();
+
+  private readonly _changes$ = new Subject<{ eventType: string; reportDate: string | null }>();
+  readonly changes$ = this._changes$.asObservable();
 
   setPendingCount(count: number): void {
     this._pendingCount.set(count);
@@ -39,6 +44,42 @@ export class IncomingReportsService {
       environment.serviceReportsSupabaseUrl,
       environment.serviceReportsSupabaseAnonKey
     );
+    this.initRealtime();
+  }
+
+  async initializeCount(): Promise<void> {
+    if (this._pendingCount() !== null) return;
+    try {
+      const now = new Date();
+      const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const groups = await this.fetchGroupedReports(month);
+      const total = groups.reduce((sum, g) => sum + g.reports.length, 0);
+      if (this._pendingCount() === null) {
+        this._pendingCount.set(total);
+      }
+    } catch {
+      // silent — badge stays hidden if fetch fails
+    }
+  }
+
+  private initRealtime(): void {
+    this.channel = this.client
+      .channel('submitted_reports_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'submitted_reports' },
+        (payload) => {
+          const row = (payload.new ?? payload.old) as { report_date?: string } | undefined;
+          if (payload.eventType === 'INSERT') {
+            this._pendingCount.update((c) => (c ?? 0) + 1);
+          }
+          this._changes$.next({
+            eventType: payload.eventType,
+            reportDate: row?.report_date ?? null,
+          });
+        }
+      )
+      .subscribe();
   }
 
   async fetchGroupedReports(month: string): Promise<GroupedReports[]> {

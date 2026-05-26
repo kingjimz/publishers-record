@@ -69,6 +69,7 @@ export class LayoutComponent implements OnInit {
   async ngOnInit(): Promise<void> {
     await this.supabase.ensureSession();
     this.onboarding.tryAutoOpen();
+    void this.incomingReports.initializeCount();
     this.routeAnimKey.set(this.animationKeyFromRouter());
     this.currentToolLabel.set(this.toolLabelFromRouter());
     this.breadcrumbs.set(this.breadcrumbsFromRouter());

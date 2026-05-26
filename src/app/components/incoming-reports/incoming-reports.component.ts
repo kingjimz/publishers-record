@@ -1,4 +1,5 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Subject, takeUntil } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -20,7 +21,8 @@ export type ReportStatus = 'applied' | 'pending' | 'not-found';
   templateUrl: './incoming-reports.component.html',
   styleUrl: './incoming-reports.component.css',
 })
-export class IncomingReportsComponent implements OnInit {
+export class IncomingReportsComponent implements OnInit, OnDestroy {
+  private readonly destroy$ = new Subject<void>();
   protected readonly groupedReports = signal<GroupedReports[]>([]);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
@@ -63,6 +65,21 @@ export class IncomingReportsComponent implements OnInit {
   async ngOnInit(): Promise<void> {
     await Promise.all([this.loadReports(), this.loadYearRecords()]);
     this.computeStatusMap();
+    this.setupRealtimeSubscription();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private setupRealtimeSubscription(): void {
+    this.service.changes$.pipe(takeUntil(this.destroy$)).subscribe(({ reportDate }) => {
+      const changeMonth = reportDate ? reportDate.slice(0, 7) : null;
+      if (!changeMonth || changeMonth === this.selectedMonth) {
+        void this.loadReports().then(() => this.computeStatusMap());
+      }
+    });
   }
 
   async onMonthChange(): Promise<void> {
