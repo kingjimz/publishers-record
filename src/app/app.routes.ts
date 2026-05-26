@@ -55,6 +55,14 @@ export const routes: Routes = [
               ),
             data: { animation: 'SearchPage', tool: 'publishers-record' },
           },
+          {
+            path: 'incoming-reports',
+            loadComponent: () =>
+              import('./components/incoming-reports/incoming-reports.component').then(
+                (m) => m.IncomingReportsComponent
+              ),
+            data: { animation: 'IncomingReportsPage', tool: 'publishers-record' },
+          },
           { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
         ],
       },

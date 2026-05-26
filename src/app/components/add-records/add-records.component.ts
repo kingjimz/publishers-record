@@ -9,6 +9,7 @@ import {
   SupabaseService,
 } from '../../services/supabase.service';
 import { ToastService } from '../../services/toast.service';
+import { ReportPrefillService } from '../../services/report-prefill.service';
 import { groupPublishersForSidebar } from '../../utils/group-publishers';
 
 @Component({
@@ -74,6 +75,7 @@ export class AddRecordsComponent {
   constructor(
     protected readonly supabase: SupabaseService,
     private readonly toast: ToastService,
+    private readonly prefill: ReportPrefillService,
     private readonly cdr: ChangeDetectorRef
   ) {
     effect(() => {
@@ -366,12 +368,43 @@ export class AddRecordsComponent {
       this.yearRecords = await this.supabase.getPublisherRecordsByServiceYear(
         this.supabase.serviceYear()
       );
+      await this.applyPrefillIfPending();
     } catch (err) {
       this.toast.showError(err instanceof Error ? err.message : 'Failed to load service year records.');
     } finally {
       this.recordsLoading = false;
       this.cdr.detectChanges();
     }
+  }
+
+  private async applyPrefillIfPending(): Promise<void> {
+    const intent = this.prefill.consume();
+    if (!intent) return;
+
+    const match = this.yearRecords.find(
+      (r) => r.publisher_name.toLowerCase() === intent.publisherName.toLowerCase()
+    );
+
+    if (match) {
+      await this.onEditRecord(match);
+      this.toast.dismiss();
+    } else {
+      this.publisherName = intent.publisherName;
+    }
+
+    if (intent.month) {
+      const monthRow = this.monthlyRecords.find((r) => r.month === intent.month);
+      if (monthRow) {
+        if (intent.hours !== null) monthRow.hours = intent.hours;
+        if (intent.bibleStudies !== null) monthRow.bibleStudies = intent.bibleStudies;
+        monthRow.sharedInMinistry = intent.sharedInMinistry;
+      }
+    }
+
+    this.toast.showSuccess(
+      `${intent.month} report pre-filled for ${intent.publisherName}.`
+    );
+    this.cdr.detectChanges();
   }
 
   private buildSavePayload(): PublisherRecord {

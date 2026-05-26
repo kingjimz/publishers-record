@@ -1,0 +1,275 @@
+<div class="px-4 py-6 sm:px-6 md:p-8 max-w-6xl mx-auto min-w-0">
+
+  <!-- Page header -->
+  <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6 md:mb-8">
+    <div>
+      <div class="flex items-center gap-3 mb-1">
+        <h1 class="text-3xl font-semibold text-slate-900 dark:text-slate-100 tracking-tight">Incoming Reports</h1>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800/50">
+          <i class="bi bi-calendar3 text-[10px]"></i>
+          {{ selectedMonthLabel }}
+        </span>
+      </div>
+      <p class="text-slate-500 dark:text-slate-400 text-sm">Field service reports submitted by publishers, grouped by service group.</p>
+    </div>
+    <div class="shrink-0 relative">
+      <select
+        [(ngModel)]="selectedMonth"
+        (ngModelChange)="onMonthChange()"
+        class="w-full sm:w-56 pl-3 pr-8 py-2.5 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-lg shadow-soft text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none appearance-none cursor-pointer">
+        @for (m of availableMonths; track m.value) {
+          <option [value]="m.value">{{ m.label }}</option>
+        }
+      </select>
+      <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+      </svg>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="mb-6">
+      <span class="text-sm text-slate-400 dark:text-slate-500">Loading reports...</span>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-6">
+      <div class="flex items-start gap-3">
+        <i class="bi bi-exclamation-circle text-red-500 dark:text-red-400 mt-0.5 shrink-0"></i>
+        <p class="text-sm text-red-600 dark:text-red-400">{{ error() }}</p>
+      </div>
+    </div>
+  }
+
+  @if (!loading()) {
+    @if (groupedReports().length === 0 && !error()) {
+      <div class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-12 text-center shadow-soft">
+        <i class="bi bi-inbox text-4xl text-gray-300 dark:text-slate-600 mb-4 block"></i>
+        <p class="text-slate-600 dark:text-slate-400 font-medium text-sm">No reports for this month</p>
+        <p class="text-slate-400 dark:text-slate-500 text-xs mt-1">Try selecting a different month above.</p>
+      </div>
+    }
+
+    @for (group of groupedReports(); track group.groupId) {
+      <div class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-soft mb-4 overflow-hidden">
+
+        <!-- Group header -->
+        <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-slate-700">
+          <div class="flex items-center gap-3">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 shrink-0">
+              <i class="bi bi-people-fill text-sm"></i>
+            </span>
+            <div>
+              <p class="font-semibold text-slate-800 dark:text-slate-200 text-sm">{{ group.groupName }}</p>
+              <p class="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
+                {{ group.reports.length }} {{ group.reports.length === 1 ? 'report' : 'reports' }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reports table -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gray-100 dark:border-slate-700 bg-gray-50/70 dark:bg-slate-700/40">
+                <th class="text-left px-5 py-2.5 text-xs font-medium text-gray-400 dark:text-slate-500 uppercase tracking-wide">Publisher</th>
+                <th class="text-left px-4 py-2.5 text-xs font-medium text-gray-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap">Date</th>
+                <th class="text-right px-4 py-2.5 text-xs font-medium text-gray-400 dark:text-slate-500 uppercase tracking-wide">Hours</th>
+                <th class="text-right px-4 py-2.5 text-xs font-medium text-gray-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap">Bible Studies</th>
+                <th class="text-center px-4 py-2.5 text-xs font-medium text-gray-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap">Shared Ministry</th>
+                <th class="text-center px-4 py-2.5 text-xs font-medium text-gray-400 dark:text-slate-500 uppercase tracking-wide">Status</th>
+                <th class="px-4 py-2.5"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (report of group.reports; track report.id) {
+                <tr class="border-b border-gray-50 dark:border-slate-700/50 last:border-0 hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors">
+                  <td class="px-5 py-3 font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                    {{ publisherName(report) }}
+                  </td>
+                  <td class="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                    {{ formatDate(report.report_date) }}
+                  </td>
+                  <td class="px-4 py-3 text-right text-slate-600 dark:text-slate-300">
+                    {{ report.hours !== null ? report.hours : '—' }}
+                  </td>
+                  <td class="px-4 py-3 text-right text-slate-600 dark:text-slate-300">
+                    {{ report.number_of_bs !== null ? report.number_of_bs : '—' }}
+                  </td>
+                  <td class="px-4 py-3 text-center">
+                    @if (report.is_shared_ministry) {
+                      <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">
+                        <i class="bi bi-check text-xs leading-none"></i>
+                      </span>
+                    } @else {
+                      <span class="text-gray-300 dark:text-slate-600 text-xs">—</span>
+                    }
+                  </td>
+
+                  <!-- Status badge -->
+                  <td class="px-4 py-3 text-center whitespace-nowrap">
+                    @switch (statusOf(report.id)) {
+                      @case ('applied') {
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+                          <i class="bi bi-check-circle-fill text-[10px]"></i> Applied
+                        </span>
+                      }
+                      @case ('pending') {
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
+                          <i class="bi bi-clock-fill text-[10px]"></i> Pending
+                        </span>
+                      }
+                      @case ('not-found') {
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
+                          <i class="bi bi-person-x-fill text-[10px]"></i> Not in records
+                        </span>
+                      }
+                    }
+                  </td>
+
+                  <!-- Apply button -->
+                  <td class="px-4 py-3 text-right">
+                    @if (statusOf(report.id) === 'applied') {
+                      <button type="button"
+                        (click)="onApplyReport(report)"
+                        title="Month already has data — click to overwrite"
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors whitespace-nowrap">
+                        <i class="bi bi-arrow-repeat text-xs"></i>
+                        Reapply
+                      </button>
+                    } @else {
+                      <button type="button"
+                        (click)="onApplyReport(report)"
+                        title="Apply this report to Add Records"
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors whitespace-nowrap">
+                        <i class="bi bi-box-arrow-in-right text-xs"></i>
+                        Apply
+                      </button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    }
+  }
+
+</div>
+
+<!-- ── Conflict confirmation modal ─────────────────────────────────────────── -->
+@if (pendingApply) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-[1px]"
+    role="dialog" aria-modal="true"
+    (click)="onCancelApply()">
+    <div class="w-full max-w-sm bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl p-5"
+      (click)="$event.stopPropagation()">
+      <div class="flex items-start gap-3 mb-4">
+        <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 shrink-0">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+        </span>
+        <div>
+          <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Overwrite existing data?</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            {{ pendingApply.resolvedName }} already has a record for {{ monthNameFromDate(pendingApply.report.report_date) }}.
+          </p>
+        </div>
+      </div>
+
+      <!-- Existing vs incoming comparison -->
+      <div class="grid grid-cols-2 gap-3 mb-5">
+        <div class="rounded-lg bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-700 p-3">
+          <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Existing</p>
+          <div class="space-y-1 text-xs text-slate-600 dark:text-slate-300">
+            <p>Hours: <span class="font-medium">{{ pendingApply.existingMonth?.hours ?? '—' }}</span></p>
+            <p>Bible Studies: <span class="font-medium">{{ pendingApply.existingMonth?.bibleStudies ?? '—' }}</span></p>
+            <p>Shared: <span class="font-medium">{{ pendingApply.existingMonth?.sharedInMinistry ? 'Yes' : 'No' }}</span></p>
+          </div>
+        </div>
+        <div class="rounded-lg bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800/50 p-3">
+          <p class="text-xs font-semibold text-primary-600 dark:text-primary-400 uppercase tracking-wide mb-2">Incoming</p>
+          <div class="space-y-1 text-xs text-slate-600 dark:text-slate-300">
+            <p>Hours: <span class="font-medium">{{ pendingApply.report.hours ?? '—' }}</span></p>
+            <p>Bible Studies: <span class="font-medium">{{ pendingApply.report.number_of_bs ?? '—' }}</span></p>
+            <p>Shared: <span class="font-medium">{{ pendingApply.report.is_shared_ministry ? 'Yes' : 'No' }}</span></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2">
+        <button type="button"
+          class="px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+          (click)="onCancelApply()">
+          Cancel
+        </button>
+        <button type="button"
+          class="px-3 py-2 rounded-lg text-xs font-medium text-white bg-amber-500 hover:bg-amber-600 transition-colors"
+          (click)="onConfirmOverwrite()">
+          Overwrite
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Disambiguation modal ─────────────────────────────────────────────────── -->
+@if (disambiguationReport) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-[1px]"
+    role="dialog" aria-modal="true"
+    (click)="onCancelDisambiguation()">
+    <div class="w-full max-w-md bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl p-5"
+      (click)="$event.stopPropagation()">
+      <div class="mb-4">
+        <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Match publisher</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          No exact match for <span class="font-medium text-slate-700 dark:text-slate-300">{{ publisherName(disambiguationReport) }}</span>. Select the correct publisher or create as new.
+        </p>
+      </div>
+
+      <!-- Search -->
+      <div class="relative mb-3">
+        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-slate-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input type="text" [(ngModel)]="disambiguationSearch"
+          class="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none"
+          placeholder="Find publisher..." autocomplete="off" />
+      </div>
+
+      <!-- Publisher list -->
+      <div class="max-h-52 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 mb-4">
+        @if (filteredDisambiguationRecords.length === 0) {
+          <p class="px-4 py-3 text-xs text-slate-400 dark:text-slate-500">No publishers match.</p>
+        } @else {
+          @for (record of filteredDisambiguationRecords; track record.id) {
+            <button type="button"
+              (click)="onSelectPublisher(record)"
+              class="w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 border-b border-slate-100 dark:border-slate-700 last:border-0 transition-colors">
+              <span class="font-medium">{{ record.publisher_name }}</span>
+              @if (record.publisher_group) {
+                <span class="ml-2 text-xs text-slate-400 dark:text-slate-500">{{ record.publisher_group }}</span>
+              }
+            </button>
+          }
+        }
+      </div>
+
+      <div class="flex items-center justify-between gap-2">
+        <button type="button"
+          class="px-3 py-2 rounded-lg text-xs font-medium text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors"
+          (click)="onCreateAsNew()">
+          Create as new publisher
+        </button>
+        <button type="button"
+          class="px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+          (click)="onCancelDisambiguation()">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+}

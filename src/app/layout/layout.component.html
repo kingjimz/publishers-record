@@ -155,6 +155,17 @@
               <i class="bi bi-journal-text text-base"></i>
               Records
             </a>
+            <a routerLink="/publishers-record/incoming-reports" routerLinkActive="text-primary-600 dark:text-primary-400 bg-slate-100 dark:bg-slate-700"
+              class="inline-flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+              <i class="bi bi-inbox-fill text-base"></i>
+              Incoming Reports
+              @let count = incomingReports.pendingCount();
+              @if (count !== null && count > 0) {
+                <span class="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold bg-primary-600 dark:bg-primary-500 text-white leading-none">
+                  {{ count > 99 ? '99+' : count }}
+                </span>
+              }
+            </a>
             <a routerLink="/publishers-record/search-records" routerLinkActive="text-primary-600 dark:text-primary-400 bg-slate-100 dark:bg-slate-700"
               class="inline-flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
               <i class="bi bi-search text-base"></i>
