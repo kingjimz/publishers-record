@@ -58,11 +58,16 @@ export class IncomingReportsComponent implements OnInit, OnDestroy {
     protected readonly theme: ThemeService
   ) {
     const now = new Date();
-    this.selectedMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    this.selectedMonth = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
     this.availableMonths = this.buildMonthOptions();
   }
 
   async ngOnInit(): Promise<void> {
+    const latestMonth = await this.service.fetchLatestReportMonth();
+    if (latestMonth && this.availableMonths.some((m) => m.value === latestMonth)) {
+      this.selectedMonth = latestMonth;
+    }
     await Promise.all([this.loadReports(), this.loadYearRecords()]);
     this.computeStatusMap();
     this.setupRealtimeSubscription();
@@ -102,6 +107,30 @@ export class IncomingReportsComponent implements OnInit, OnDestroy {
     }
     const pending = [...this.statusMap.values()].filter((s) => s !== 'applied').length;
     this.service.setPendingCount(pending);
+    this.sortReports();
+  }
+
+  private sortReports(): void {
+    const statusOrder = (id: string) => (this.statusMap.get(id) === 'applied' ? 1 : 0);
+    const hasPending = (group: GroupedReports) =>
+      group.reports.some((r) => this.statusMap.get(r.id) !== 'applied');
+
+    const sorted = this.groupedReports()
+      .map((group) => ({
+        ...group,
+        reports: [...group.reports].sort((a, b) => {
+          const byStatus = statusOrder(a.id) - statusOrder(b.id);
+          if (byStatus !== 0) return byStatus;
+          return (a.last_name ?? '').localeCompare(b.last_name ?? '');
+        }),
+      }))
+      .sort((a, b) => {
+        const byPending = (hasPending(b) ? 1 : 0) - (hasPending(a) ? 1 : 0);
+        if (byPending !== 0) return byPending;
+        return a.groupName.localeCompare(b.groupName);
+      });
+
+    this.groupedReports.set(sorted);
   }
 
   private resolveStatus(report: SubmittedReport): ReportStatus {

@@ -29,7 +29,20 @@ export class IncomingReportsService {
   private readonly client: SupabaseClient;
   private channel: RealtimeChannel | null = null;
 
-  private readonly _pendingCount = signal<number | null>(null);
+  private static readonly PENDING_COUNT_KEY = 'ir_pending_count';
+
+  private static readStoredCount(): number | null {
+    try {
+      const v = localStorage.getItem(IncomingReportsService.PENDING_COUNT_KEY);
+      return v !== null ? parseInt(v, 10) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private readonly _pendingCount = signal<number | null>(
+    IncomingReportsService.readStoredCount()
+  );
   readonly pendingCount = this._pendingCount.asReadonly();
 
   private readonly _changes$ = new Subject<{ eventType: string; reportDate: string | null }>();
@@ -37,6 +50,9 @@ export class IncomingReportsService {
 
   setPendingCount(count: number): void {
     this._pendingCount.set(count);
+    try {
+      localStorage.setItem(IncomingReportsService.PENDING_COUNT_KEY, String(count));
+    } catch {}
   }
 
   constructor() {
@@ -50,12 +66,12 @@ export class IncomingReportsService {
   async initializeCount(): Promise<void> {
     if (this._pendingCount() !== null) return;
     try {
-      const now = new Date();
-      const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      const groups = await this.fetchGroupedReports(month);
+      const latestMonth = await this.fetchLatestReportMonth();
+      if (!latestMonth) return;
+      const groups = await this.fetchGroupedReports(latestMonth);
       const total = groups.reduce((sum, g) => sum + g.reports.length, 0);
       if (this._pendingCount() === null) {
-        this._pendingCount.set(total);
+        this.setPendingCount(total);
       }
     } catch {
       // silent — badge stays hidden if fetch fails
@@ -71,7 +87,7 @@ export class IncomingReportsService {
         (payload) => {
           const row = (payload.new ?? payload.old) as { report_date?: string } | undefined;
           if (payload.eventType === 'INSERT') {
-            this._pendingCount.update((c) => (c ?? 0) + 1);
+            this.setPendingCount((this._pendingCount() ?? 0) + 1);
           }
           this._changes$.next({
             eventType: payload.eventType,
@@ -80,6 +96,18 @@ export class IncomingReportsService {
         }
       )
       .subscribe();
+  }
+
+  async fetchLatestReportMonth(): Promise<string | null> {
+    const { data, error } = await this.client
+      .from('submitted_reports')
+      .select('report_date')
+      .not('report_date', 'is', null)
+      .order('report_date', { ascending: false })
+      .limit(1)
+      .single();
+    if (error || !data) return null;
+    return (data.report_date as string).slice(0, 7);
   }
 
   async fetchGroupedReports(month: string): Promise<GroupedReports[]> {
