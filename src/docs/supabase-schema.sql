@@ -228,3 +228,15 @@ comment on column public.publisher_pioneer_profiles.regular_pioneer_periods is
 
 comment on column public.publisher_records.publisher_group is
   'Optional group label for organizing publishers (per congregation needs).';
+
+-- ---------------------------------------------------------------------------
+-- meeting_weeks / meeting_parts (Meeting Scheduler)
+-- See migration 20261002000000_create_meeting_schedule_tables.sql for the
+-- authoritative definition (tables, RLS "Single user full access" policies,
+-- explicit grants to authenticated, updated_at triggers, and indexes).
+-- meeting_weeks: one row per week (week_of Monday, unique) holding week_type,
+--   midweek header fields (bible reading, songs, chairman, prayers) and all
+--   weekend meeting assignments (public talk, WT conductor/reader, prayers).
+-- meeting_parts: variable midweek program parts per section
+--   (treasures | ministry | living) with assignee_name / assistant_name
+--   referencing publishers by name, and a room column for future aux classes.

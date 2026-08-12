@@ -105,6 +105,10 @@ export class LayoutComponent implements OnInit {
     return this.currentToolLabel() === 'Attendance';
   }
 
+  protected isMeetingSchedulerTool(): boolean {
+    return this.currentToolLabel() === 'Meeting Scheduler';
+  }
+
   protected onHeaderPreviousYear(): void {
     this.supabase.previousServiceYear();
   }
@@ -131,6 +135,7 @@ export class LayoutComponent implements OnInit {
     }
     const tool = route.snapshot.data['tool'];
     if (tool === 'attendance') return 'Attendance Tracker';
+    if (tool === 'meeting-scheduler') return 'Meeting Scheduler';
     return 'Publishers Record';
   }
 

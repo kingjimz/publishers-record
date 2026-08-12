@@ -1,0 +1,298 @@
+<div class="space-y-5">
+
+  <!-- Week type and notes -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <label class="flex flex-col gap-1">
+      <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Week Type</span>
+      <select
+        [ngModel]="week.week_type"
+        (ngModelChange)="onWeekTypeChange($event)"
+        name="weekType"
+        class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none">
+        <option value="regular">Regular week</option>
+        <option value="co_visit">Circuit overseer visit</option>
+        <option value="memorial">Memorial</option>
+        <option value="no_meeting">No meeting (assembly / convention)</option>
+      </select>
+    </label>
+    @if (mode === 'midweek') {
+      <label class="flex flex-col gap-1">
+        <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Cleaner of the Week</span>
+        <input
+          type="text"
+          [(ngModel)]="week.cleaning_group"
+          name="cleaningGroup"
+          placeholder="e.g. Group 5"
+          list="cleaningGroupOptions"
+          class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+        <datalist id="cleaningGroupOptions">
+          <option value="Group 1"></option>
+          <option value="Group 2"></option>
+          <option value="Group 3"></option>
+          <option value="Group 4"></option>
+          <option value="Group 5"></option>
+        </datalist>
+      </label>
+    }
+    <label class="flex flex-col gap-1" [class.md:col-span-2]="mode !== 'midweek'">
+      <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Notes</span>
+      <input
+        type="text"
+        [(ngModel)]="week.notes"
+        name="weekNotes"
+        placeholder="Optional remarks for this week"
+        class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+    </label>
+  </div>
+
+  @if (hasMeeting) {
+
+    @if (mode === 'midweek') {
+    <!-- ============ MIDWEEK MEETING ============ -->
+    <div class="rounded-xl border border-slate-200 dark:border-slate-700">
+      <div class="px-4 py-3 rounded-t-xl bg-primary-50 dark:bg-primary-900/20 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+        <i class="bi bi-book text-primary-600 dark:text-primary-400"></i>
+        <h4 class="text-sm font-semibold text-primary-800 dark:text-primary-300">Midweek Meeting (Christian Life and Ministry)</h4>
+      </div>
+      <div class="p-4 space-y-4">
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <label class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Meeting Date</span>
+            <input type="date" [(ngModel)]="week.midweek_date" name="midweekDate"
+              class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+          </label>
+          <label class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Weekly Bible Reading</span>
+            <input type="text" [(ngModel)]="week.weekly_bible_reading" name="weeklyBibleReading" placeholder="e.g. PROVERBS 12"
+              class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+          </label>
+          <div class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Songs (open / middle / close)</span>
+            <div class="flex items-center gap-2">
+              <input type="number" min="1" max="200" [(ngModel)]="week.song_opening" name="songOpening" placeholder="#"
+                class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+              <input type="number" min="1" max="200" [(ngModel)]="week.song_middle" name="songMiddle" placeholder="#"
+                class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+              <input type="number" min="1" max="200" [(ngModel)]="week.song_closing" name="songClosing" placeholder="#"
+                class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Chairman</span>
+            <app-assignee-picker [publishers]="publishers" [history]="history"
+              [eligibility]="roleEligibility('chairman_name')"
+              [value]="week.chairman_name" (valueChange)="week.chairman_name = $event" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Opening Prayer</span>
+            <app-assignee-picker [publishers]="publishers" [history]="history"
+              [eligibility]="roleEligibility('opening_prayer_name')"
+              [value]="week.opening_prayer_name" (valueChange)="week.opening_prayer_name = $event" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Closing Prayer</span>
+            <app-assignee-picker [publishers]="publishers" [history]="history"
+              [eligibility]="roleEligibility('closing_prayer_name')"
+              [value]="week.closing_prayer_name" (valueChange)="week.closing_prayer_name = $event" />
+          </div>
+        </div>
+
+        @if (!isMemorial) {
+          @for (section of sections; track section.key) {
+            <div class="rounded-lg border border-slate-200 dark:border-slate-700">
+              <div class="px-3 py-2.5 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                <span class="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  <i class="bi {{ section.icon }}"></i>
+                  {{ section.label }}
+                </span>
+                <button type="button" (click)="addPart(section.key)"
+                  class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300">
+                  <i class="bi bi-plus-lg"></i> Add part
+                </button>
+              </div>
+              <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                @if (partsFor(section.key).length === 0) {
+                  <p class="px-3 py-3 text-sm text-slate-400 dark:text-slate-500">No parts in this section.</p>
+                }
+                @for (part of partsFor(section.key); track trackPart($index); let first = $first; let last = $last) {
+                  <div class="p-3 grid grid-cols-1 lg:grid-cols-12 gap-2 items-start">
+                    <label class="flex flex-col gap-1" [class.lg:col-span-4]="section.key !== 'ministry'" [class.lg:col-span-3]="section.key === 'ministry'">
+                      <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Part Title</span>
+                      <input type="text" [(ngModel)]="part.title" [name]="'partTitle' + section.key + $index" placeholder="Part title"
+                        class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+                    </label>
+                    @if (section.key === 'ministry') {
+                      <label class="flex flex-col gap-1 lg:col-span-1">
+                        <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Setting</span>
+                        <input type="text" [(ngModel)]="part.setting" [name]="'partSetting' + section.key + $index" placeholder="e.g. HOUSE TO HOUSE"
+                          class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+                      </label>
+                    }
+                    <label class="flex flex-col gap-1 lg:col-span-1">
+                      <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Min</span>
+                      <input type="number" min="1" [(ngModel)]="part.duration_minutes" [name]="'partMinutes' + section.key + $index" placeholder="-"
+                        class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+                    </label>
+                    <label class="flex flex-col gap-1 lg:col-span-2">
+                      <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Type</span>
+                      <select [(ngModel)]="part.part_type" (ngModelChange)="onPartTypeChange(part)" [name]="'partType' + section.key + $index"
+                        class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none">
+                        @for (type of partTypeOptions; track type) {
+                          <option [value]="type">{{ partTypeLabels[type] }}</option>
+                        }
+                      </select>
+                    </label>
+                    <div class="flex flex-col gap-1 lg:col-span-2">
+                      <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Assigned To</span>
+                      <app-assignee-picker [publishers]="publishers" [history]="history"
+                        [eligibility]="partEligibility(part)"
+                        [value]="part.assignee_name" (valueChange)="part.assignee_name = $event" />
+                    </div>
+                    <div class="flex flex-col gap-1 lg:col-span-2">
+                      @if (allowsAssistant(part)) {
+                        <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Assistant</span>
+                        <app-assignee-picker [publishers]="publishers" [history]="history"
+                          eligibility="any" [pairWith]="part.assignee_name" placeholder="Select assistant"
+                          [value]="part.assistant_name" (valueChange)="part.assistant_name = $event" />
+                      }
+                    </div>
+                    <div class="flex items-end gap-1 lg:col-span-1 lg:pt-5">
+                      <button type="button" (click)="movePart(part, -1)" [disabled]="first"
+                        class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 disabled:opacity-30" title="Move up" aria-label="Move part up">
+                        <i class="bi bi-arrow-up"></i>
+                      </button>
+                      <button type="button" (click)="movePart(part, 1)" [disabled]="last"
+                        class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 disabled:opacity-30" title="Move down" aria-label="Move part down">
+                        <i class="bi bi-arrow-down"></i>
+                      </button>
+                      <button type="button" (click)="removePart(part)"
+                        class="p-1.5 text-red-400 hover:text-red-600 dark:hover:text-red-400" title="Remove part" aria-label="Remove part">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        } @else {
+          <p class="text-sm text-slate-500 dark:text-slate-400">
+            Memorial week: no regular midweek program. Use the fields above for the Memorial talk arrangements and notes.
+          </p>
+        }
+      </div>
+    </div>
+    }
+
+    @if (mode === 'weekend') {
+    <!-- ============ WEEKEND MEETING ============ -->
+    <div class="rounded-xl border border-slate-200 dark:border-slate-700">
+      <div class="px-4 py-3 rounded-t-xl bg-emerald-50 dark:bg-emerald-900/20 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+        <i class="bi bi-mic text-emerald-600 dark:text-emerald-400"></i>
+        <h4 class="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Weekend Meeting</h4>
+      </div>
+      <div class="p-4 space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <label class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Meeting Date</span>
+            <input type="date" [(ngModel)]="week.weekend_date" name="weekendDate"
+              class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+          </label>
+          <div class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Chairman</span>
+            <app-assignee-picker [publishers]="publishers" [history]="history"
+              [eligibility]="roleEligibility('weekend_chairman_name')"
+              [value]="week.weekend_chairman_name" (valueChange)="week.weekend_chairman_name = $event" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Songs (open / middle / close)</span>
+            <div class="flex items-center gap-2">
+              <input type="number" min="1" max="200" [(ngModel)]="week.weekend_song_opening" name="weekendSongOpening" placeholder="#"
+                class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+              <input type="number" min="1" max="200" [(ngModel)]="week.weekend_song_middle" name="weekendSongMiddle" placeholder="#"
+                class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+              <input type="number" min="1" max="200" [(ngModel)]="week.weekend_song_closing" name="weekendSongClosing" placeholder="#"
+                class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <label class="flex flex-col gap-1 sm:col-span-1">
+            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Public Talk Theme</span>
+            <input type="text" [(ngModel)]="week.public_talk_theme" name="publicTalkTheme" placeholder="Talk theme"
+              class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+          </label>
+          <div class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Speaker</span>
+            <app-assignee-picker [publishers]="publishers" [history]="history" [allowFreeText]="true"
+              [eligibility]="roleEligibility('public_talk_speaker_name')" placeholder="Speaker (or type a visitor)"
+              [value]="week.public_talk_speaker_name" (valueChange)="week.public_talk_speaker_name = $event" />
+          </div>
+          <label class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Speaker's Congregation</span>
+            <input type="text" [(ngModel)]="week.speaker_congregation" name="speakerCongregation" placeholder="Leave blank if local"
+              class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+          </label>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <label class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Watchtower Study Article</span>
+            <input type="text" [(ngModel)]="week.wt_article_title" name="wtArticleTitle" placeholder="Study article title"
+              class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+          </label>
+          <div class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">WT Conductor</span>
+            <app-assignee-picker [publishers]="publishers" [history]="history"
+              [eligibility]="roleEligibility('wt_conductor_name')"
+              [value]="week.wt_conductor_name" (valueChange)="week.wt_conductor_name = $event" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">WT Reader</span>
+            <app-assignee-picker [publishers]="publishers" [history]="history"
+              [eligibility]="roleEligibility('wt_reader_name')"
+              [value]="week.wt_reader_name" (valueChange)="week.wt_reader_name = $event" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Opening Prayer</span>
+            <app-assignee-picker [publishers]="publishers" [history]="history"
+              [eligibility]="roleEligibility('weekend_opening_prayer_name')"
+              [value]="week.weekend_opening_prayer_name" (valueChange)="week.weekend_opening_prayer_name = $event" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Closing Prayer</span>
+            <app-assignee-picker [publishers]="publishers" [history]="history"
+              [eligibility]="roleEligibility('weekend_closing_prayer_name')"
+              [value]="week.weekend_closing_prayer_name" (valueChange)="week.weekend_closing_prayer_name = $event" />
+          </div>
+        </div>
+      </div>
+    </div>
+    }
+
+  } @else {
+    <p class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 p-4 text-sm text-slate-500 dark:text-slate-400">
+      No meeting this week (assembly or convention). Only the notes above will appear on the printed schedule.
+    </p>
+  }
+
+  <!-- Actions -->
+  <div class="flex items-center justify-end gap-2">
+    <button type="button" class="btn btn-outline-secondary px-4 py-2 rounded-lg text-sm font-medium"
+      [disabled]="saving" (click)="cancelEdit.emit()">
+      Cancel
+    </button>
+    <button type="button" class="btn btn-primary px-4 py-2 rounded-lg text-sm font-medium"
+      [disabled]="saving" (click)="save.emit()">
+      @if (saving) { Saving... } @else { Save Week }
+    </button>
+  </div>
+</div>

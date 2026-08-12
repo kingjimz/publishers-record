@@ -1,0 +1,75 @@
+<div class="relative">
+  <button
+    type="button"
+    (click)="openPanel()"
+    class="w-full flex items-center justify-between gap-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-left focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none">
+    <span class="truncate" [class.text-slate-900]="!!value" [class.dark:text-slate-100]="!!value"
+      [class.text-slate-400]="!value" [class.dark:text-slate-500]="!value">
+      {{ displayValue || placeholder }}
+    </span>
+    <span class="flex items-center gap-1.5 shrink-0">
+      @if (currentWarning) {
+        <i class="bi bi-exclamation-triangle-fill text-amber-500" [title]="currentWarning"></i>
+      }
+      <i class="bi bi-chevron-down text-slate-400 text-xs"></i>
+    </span>
+  </button>
+
+  @if (currentWarning) {
+    <p class="mt-1 text-xs text-amber-600 dark:text-amber-400">{{ currentWarning }}</p>
+  }
+
+  @if (open) {
+    <div class="fixed inset-0 z-[70]" (click)="closePanel()" aria-hidden="true"></div>
+    <div class="absolute left-0 top-full mt-1 z-[80] min-w-full w-[340px] max-w-[calc(100vw-2rem)] rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden">
+      <div class="p-2 border-b border-slate-100 dark:border-slate-700">
+        <input
+          type="text"
+          [(ngModel)]="query"
+          name="assigneeQuery"
+          placeholder="Search publishers..."
+          autocomplete="off"
+          class="w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+      </div>
+      <div class="max-h-80 overflow-y-auto py-1">
+        @if (value) {
+          <button type="button" (click)="clear()"
+            class="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+            <i class="bi bi-x-circle"></i>
+            Clear selection
+          </button>
+        }
+        @if (freeTextCandidate) {
+          <button type="button" (click)="select(freeTextCandidate!)"
+            class="w-full flex items-center gap-2 px-3 py-2 text-sm text-primary-600 dark:text-primary-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+            <i class="bi bi-plus-circle"></i>
+            Use "{{ freeTextCandidate }}"
+          </button>
+        }
+        @for (option of options; track option.name) {
+          <button type="button" (click)="select(option.name)"
+            class="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+            [class.opacity-70]="!option.eligible">
+            <span class="flex items-center gap-2 min-w-0">
+              <span class="truncate text-slate-800 dark:text-slate-200">{{ option.label }}</span>
+              @if (option.badge) {
+                <span class="inline-flex items-center rounded-full bg-primary-50 dark:bg-primary-900/30 px-1.5 py-0.5 text-[10px] font-semibold text-primary-700 dark:text-primary-400 shrink-0">
+                  {{ option.badge }}
+                </span>
+              }
+              @if (option.warning) {
+                <i class="bi bi-exclamation-triangle-fill text-amber-500 text-xs shrink-0" [title]="option.warning"></i>
+              }
+            </span>
+            @if (option.lastAssigned) {
+              <span class="text-[11px] text-slate-400 dark:text-slate-500 shrink-0">{{ option.lastAssigned }}</span>
+            }
+          </button>
+        }
+        @if (options.length === 0 && !freeTextCandidate) {
+          <p class="px-3 py-3 text-sm text-slate-400 dark:text-slate-500 text-center">No publishers found.</p>
+        }
+      </div>
+    </div>
+  }
+</div>

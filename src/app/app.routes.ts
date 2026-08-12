@@ -72,6 +72,24 @@ export const routes: Routes = [
           import('./components/attendance/attendance.component').then((m) => m.AttendanceComponent),
         data: { animation: 'AttendancePage', tool: 'attendance' },
       },
+      {
+        path: 'meeting-scheduler',
+        children: [
+          {
+            path: 'midweek',
+            loadComponent: () =>
+              import('./components/meeting-scheduler/meeting-schedule.component').then(
+                (m) => m.MeetingScheduleComponent
+              ),
+            data: { animation: 'MeetingMidweekPage', tool: 'meeting-scheduler', mode: 'midweek' },
+          },
+          // Weekend scheduler is parked for now; re-add a 'weekend' route with
+          // data.mode = 'weekend' to bring it back (component supports both modes).
+          { path: 'weekend', pathMatch: 'full', redirectTo: 'midweek' },
+          { path: 'schedule', pathMatch: 'full', redirectTo: 'midweek' },
+          { path: '', pathMatch: 'full', redirectTo: 'midweek' },
+        ],
+      },
     ],
   },
   {

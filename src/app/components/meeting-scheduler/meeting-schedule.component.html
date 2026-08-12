@@ -1,0 +1,562 @@
+<section class="px-4 py-6 sm:px-6 md:p-8 max-w-7xl mx-auto min-w-0 space-y-6">
+
+  <!-- Page header -->
+  <div class="flex flex-wrap items-start justify-between gap-4">
+    <div class="flex items-center gap-3.5">
+      <div class="hidden sm:flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 text-white text-xl shadow-sm">
+        <i class="bi" [class.bi-journal-bookmark-fill]="mode === 'midweek'" [class.bi-mic-fill]="mode === 'weekend'"></i>
+      </div>
+      <div>
+        <div class="flex flex-wrap items-center gap-2.5">
+          <h1 class="text-2xl sm:text-3xl font-semibold text-slate-900 dark:text-slate-100 tracking-tight">{{ pageTitle }}</h1>
+          <span
+            class="inline-flex items-center gap-1 rounded-full border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/30 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-violet-700 dark:text-violet-300"
+            title="This module is in its testing phase. Please double-check generated schedules before publishing them.">
+            <i class="bi bi-flask"></i>
+            Beta
+          </span>
+        </div>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ pageSubtitle }}</p>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      @if (mode === 'midweek') {
+        <button type="button" (click)="onRequestGenerate('slips')"
+          [disabled]="loading || generating"
+          class="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:pointer-events-none">
+          <i class="bi bi-card-text"></i>
+          Print Slips
+        </button>
+      }
+      <button type="button" (click)="onRequestGenerate('png')"
+        [disabled]="loading || generating"
+        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:pointer-events-none">
+        @if (downloadingPng) {
+          <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+          Saving...
+        } @else {
+          <i class="bi bi-file-earmark-image"></i>
+          Save as PNG
+        }
+      </button>
+      <button type="button" (click)="onRequestGenerate('print')"
+        [disabled]="loading || generating"
+        class="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:pointer-events-none">
+        @if (printingMonth) {
+          <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+          Preparing...
+        } @else {
+          <i class="bi bi-printer"></i>
+          Print Schedule
+        }
+      </button>
+    </div>
+  </div>
+
+  <!-- Month overview dashboard -->
+  <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div class="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm p-4">
+      <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400">
+        <i class="bi bi-calendar2-week"></i>
+      </div>
+      <div class="min-w-0">
+        <p class="text-xl font-semibold leading-tight text-slate-900 dark:text-slate-100">
+          {{ monthStats.planned }}<span class="text-sm font-medium text-slate-400 dark:text-slate-500"> / {{ monthStats.mondays }}</span>
+        </p>
+        <p class="text-xs text-slate-500 dark:text-slate-400 truncate">Weeks planned</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm p-4">
+      <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+        <i class="bi bi-check2-circle"></i>
+      </div>
+      <div class="min-w-0">
+        <p class="text-xl font-semibold leading-tight text-slate-900 dark:text-slate-100">{{ monthStats.fullyAssigned }}</p>
+        <p class="text-xs text-slate-500 dark:text-slate-400 truncate">Fully assigned</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm p-4">
+      <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+        [class]="monthStats.openSlots > 0
+          ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
+          : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'">
+        <i class="bi bi-person-dash"></i>
+      </div>
+      <div class="min-w-0">
+        <p class="text-xl font-semibold leading-tight text-slate-900 dark:text-slate-100">{{ monthStats.openSlots }}</p>
+        <p class="text-xs text-slate-500 dark:text-slate-400 truncate">Open assignments</p>
+      </div>
+    </div>
+
+    @if (mode === 'midweek') {
+      <button type="button" (click)="openUsageModal()" title="Import usage this month"
+        class="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm p-4 text-left hover:border-primary-300 dark:hover:border-primary-700 hover:shadow-md transition-all">
+        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
+          <i class="bi bi-activity"></i>
+        </div>
+        <div class="min-w-0">
+          <p class="text-xl font-semibold leading-tight text-slate-900 dark:text-slate-100">{{ importUsage?.thisMonth ?? 0 }}</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400 truncate">Imports this month <i class="bi bi-box-arrow-up-right text-[10px]"></i></p>
+        </div>
+      </button>
+    }
+  </div>
+
+  <!-- Month navigator -->
+  <div class="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm px-4 py-3">
+    <div class="flex items-center gap-1">
+      <button type="button" (click)="onPreviousMonth()" [disabled]="loading"
+        class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-40"
+        title="Previous month" aria-label="Previous month">
+        <i class="bi bi-chevron-left"></i>
+      </button>
+      <span class="min-w-[150px] text-center text-sm font-semibold text-slate-800 dark:text-slate-200">{{ monthLabel }}</span>
+      <button type="button" (click)="onNextMonth()" [disabled]="loading"
+        class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-40"
+        title="Next month" aria-label="Next month">
+        <i class="bi bi-chevron-right"></i>
+      </button>
+    </div>
+    @if (mode === 'midweek') {
+      <label class="flex items-center gap-2 ml-auto">
+        <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Workbook language</span>
+        <select
+          [ngModel]="importLanguage"
+          (ngModelChange)="onImportLanguageChange($event)"
+          name="importLanguage"
+          class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none">
+          @for (language of importLanguages; track language.code) {
+            <option [value]="language.code">{{ language.label }}</option>
+          }
+        </select>
+      </label>
+    }
+  </div>
+
+  <!-- Week cards -->
+  @if (loading) {
+    <div class="space-y-4" aria-label="Loading schedule">
+      @for (i of [0, 1, 2]; track i) {
+        <div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm p-5 animate-pulse">
+          <div class="flex items-center justify-between">
+            <div class="h-4 w-48 rounded bg-slate-200 dark:bg-slate-700"></div>
+            <div class="h-4 w-24 rounded bg-slate-100 dark:bg-slate-700/70"></div>
+          </div>
+          <div class="mt-4 space-y-2.5">
+            <div class="h-3 w-full rounded bg-slate-100 dark:bg-slate-700/70"></div>
+            <div class="h-3 w-5/6 rounded bg-slate-100 dark:bg-slate-700/70"></div>
+            <div class="h-3 w-2/3 rounded bg-slate-100 dark:bg-slate-700/70"></div>
+          </div>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="space-y-4">
+      @for (monday of mondays; track monday) {
+        @let week = weekFor(monday);
+
+        <div class="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm hover:shadow-md transition-shadow">
+          <span class="absolute inset-y-0 left-0 w-1 {{ weekAccent(week) }}" aria-hidden="true"></span>
+
+          <div class="pl-5 pr-4 py-3.5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700">
+            <div class="flex flex-wrap items-center gap-2.5">
+              <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ formatWeekLabel(monday) }}</h3>
+              @if (week) {
+                @if (weekTypeLabel(week)) {
+                  <span class="inline-flex items-center rounded-full bg-amber-50 dark:bg-amber-900/30 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:text-amber-400">
+                    {{ weekTypeLabel(week) }}
+                  </span>
+                }
+                @if (week.weekly_bible_reading) {
+                  <span class="text-xs text-slate-400 dark:text-slate-500">{{ week.weekly_bible_reading }}</span>
+                }
+                @let unassigned = unassignedCount(week);
+                @if (unassigned > 0) {
+                  <span class="inline-flex items-center gap-1 rounded-full bg-red-50 dark:bg-red-900/30 px-2.5 py-1 text-xs font-semibold text-red-700 dark:text-red-400">
+                    <i class="bi bi-person-dash"></i>
+                    {{ unassigned }} unassigned
+                  </span>
+                } @else if (week.week_type !== 'no_meeting') {
+                  <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                    <i class="bi bi-check-circle"></i>
+                    Fully assigned
+                  </span>
+                }
+              }
+            </div>
+
+            <div class="flex items-center gap-1.5">
+              @if (!isEditing(monday)) {
+                @if (mode === 'midweek') {
+                  <button type="button"
+                    class="inline-flex items-center gap-1.5 rounded-lg bg-primary-50 dark:bg-primary-900/30 px-2.5 py-1.5 text-xs font-semibold text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                    [disabled]="importing !== null || saving"
+                    (click)="onImportWeek(monday)">
+                    @if (importing === monday) {
+                      <span class="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+                      Importing...
+                    } @else {
+                      <i class="bi bi-cloud-download"></i>
+                      Import program
+                    }
+                  </button>
+                }
+                @if (week) {
+                  <button type="button"
+                    class="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                    [disabled]="saving || importing !== null"
+                    (click)="onEditWeek(week)">
+                    <i class="bi bi-pencil"></i>
+                    Edit
+                  </button>
+                  <button type="button"
+                    class="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                    [disabled]="deletingId === week.id || saving"
+                    (click)="onRequestDelete(week)">
+                    <i class="bi bi-trash"></i>
+                    Remove
+                  </button>
+                } @else {
+                  <button type="button"
+                    class="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                    [disabled]="saving || importing !== null"
+                    (click)="onAddWeek(monday)">
+                    <i class="bi bi-plus-lg"></i>
+                    Add program
+                  </button>
+                }
+              }
+            </div>
+          </div>
+
+          @if (isEditing(monday) && draft) {
+            <div class="p-4 sm:p-5">
+              <app-meeting-week-editor
+                [week]="draft"
+                [mode]="mode"
+                [publishers]="publishers"
+                [history]="history"
+                [saving]="saving"
+                (save)="onSaveDraft()"
+                (cancelEdit)="onCancelEdit()" />
+            </div>
+          } @else if (week) {
+            <!-- Read-only summary -->
+            <div class="pl-5 pr-4 py-3.5 text-sm">
+              @if (week.week_type === 'no_meeting') {
+                <p class="text-slate-500 dark:text-slate-400">
+                  No meeting this week{{ week.notes ? ': ' + week.notes : ' (assembly or convention).' }}
+                </p>
+              } @else if (mode === 'midweek') {
+                <div class="space-y-1.5">
+                  <p class="text-slate-600 dark:text-slate-300">
+                    <span class="text-slate-400 dark:text-slate-500">Chairman:</span>
+                    {{ personName(week.chairman_name) }}
+                  </p>
+                  <p class="text-slate-600 dark:text-slate-300">
+                    <span class="text-slate-400 dark:text-slate-500">Prayers (open / close):</span>
+                    {{ personName(week.opening_prayer_name) }} / {{ personName(week.closing_prayer_name) }}
+                  </p>
+                  @for (part of week.parts; track $index) {
+                    <p class="text-slate-600 dark:text-slate-300 truncate">
+                      <span class="text-slate-400 dark:text-slate-500">{{ part.title }}@if (part.duration_minutes) { ({{ part.duration_minutes }} min)}:</span>
+                      {{ personName(part.assignee_name) }}@if (part.assistant_name) { / {{ personName(part.assistant_name) }}}
+                    </p>
+                  }
+                </div>
+              } @else {
+                <div class="space-y-1.5">
+                  <p class="text-slate-600 dark:text-slate-300">
+                    <span class="text-slate-400 dark:text-slate-500">Chairman:</span>
+                    {{ personName(week.weekend_chairman_name) }}
+                  </p>
+                  <p class="text-slate-600 dark:text-slate-300">
+                    <span class="text-slate-400 dark:text-slate-500">Public Talk:</span>
+                    {{ personName(week.public_talk_speaker_name) }}@if (week.speaker_congregation) { ({{ week.speaker_congregation }})}
+                  </p>
+                  @if (week.public_talk_theme) {
+                    <p class="text-slate-500 dark:text-slate-400 italic truncate">"{{ week.public_talk_theme }}"</p>
+                  }
+                  <p class="text-slate-600 dark:text-slate-300">
+                    <span class="text-slate-400 dark:text-slate-500">Watchtower Study:</span>
+                    {{ personName(week.wt_conductor_name) }}@if (week.wt_reader_name) { / Reader: {{ personName(week.wt_reader_name) }}}
+                  </p>
+                  @if (week.wt_article_title) {
+                    <p class="text-slate-500 dark:text-slate-400 italic truncate">"{{ week.wt_article_title }}"</p>
+                  }
+                  <p class="text-slate-600 dark:text-slate-300">
+                    <span class="text-slate-400 dark:text-slate-500">Prayers (open / close):</span>
+                    {{ personName(week.weekend_opening_prayer_name) }} / {{ personName(week.weekend_closing_prayer_name) }}
+                  </p>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="pl-5 pr-4 py-6 flex items-center gap-3 text-sm text-slate-400 dark:text-slate-500">
+              <i class="bi bi-calendar-plus text-lg"></i>
+              <span>
+                @if (mode === 'midweek') {
+                  No program yet. Use <span class="font-medium text-slate-500 dark:text-slate-400">Import program</span> to prefill from the workbook, or <span class="font-medium text-slate-500 dark:text-slate-400">Add program</span> to enter it manually.
+                } @else {
+                  No assignments yet. Use <span class="font-medium text-slate-500 dark:text-slate-400">Add program</span> to set up this weekend's meeting.
+                }
+              </span>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Import progress -->
+  @if (importModalOpen) {
+    <div class="fixed inset-0 z-[120] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center px-4">
+      <div class="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl p-5">
+        <div class="flex items-center gap-3">
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400">
+            <i class="bi bi-cloud-download"></i>
+          </div>
+          <div class="min-w-0">
+            <h3 class="text-base font-semibold text-slate-900 dark:text-slate-100">Importing Program</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 truncate">{{ importWeekLabel }} &bull; {{ importLanguageLabel }} workbook</p>
+          </div>
+        </div>
+
+        <ol class="mt-5 space-y-3.5">
+          @for (step of importSteps; track step.label) {
+            <li class="flex items-start gap-3">
+              <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center">
+                @switch (step.status) {
+                  @case ('done') {
+                    <i class="bi bi-check-circle-fill text-emerald-500"></i>
+                  }
+                  @case ('active') {
+                    <span class="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></span>
+                  }
+                  @case ('error') {
+                    <i class="bi bi-x-circle-fill text-red-500"></i>
+                  }
+                  @default {
+                    <i class="bi bi-circle text-slate-300 dark:text-slate-600"></i>
+                  }
+                }
+              </span>
+              <div class="min-w-0">
+                <p class="text-sm font-medium"
+                  [class]="step.status === 'pending' ? 'text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-200'">
+                  {{ step.label }}
+                </p>
+                <p class="text-xs text-slate-400 dark:text-slate-500">{{ step.detail }}</p>
+              </div>
+            </li>
+          }
+        </ol>
+
+        @if (importError) {
+          <div class="mt-4 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-900/20 px-3.5 py-3">
+            <p class="text-sm font-medium text-red-700 dark:text-red-400">{{ importError }}</p>
+            <p class="mt-1 text-xs text-red-600/80 dark:text-red-400/80">You can still fill the program manually in the editor below.</p>
+          </div>
+        } @else if (importSteps[importSteps.length - 1]?.status === 'done') {
+          <div class="mt-4 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-900/20 px-3.5 py-3">
+            <p class="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+              @if (importFromCache) {
+                Loaded from the saved copy. Assign publishers, then save.
+              } @else {
+                Program imported. Assign publishers, then save.
+              }
+            </p>
+          </div>
+        }
+
+        <div class="mt-5 flex items-center justify-end">
+          @if (importError) {
+            <button type="button" (click)="closeImportModal()"
+              class="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 transition-colors">
+              Close
+            </button>
+          } @else {
+            <button type="button" (click)="closeImportModal()"
+              class="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+              Hide
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Generate confirmation -->
+  @if (generateRequest) {
+    <div class="fixed inset-0 z-[120] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center px-4">
+      <div class="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl p-5">
+        <div class="flex items-center gap-3">
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400">
+            <i class="bi" [class.bi-printer]="generateRequest !== 'png'" [class.bi-file-earmark-image]="generateRequest === 'png'"></i>
+          </div>
+          <h3 class="text-base font-semibold text-slate-900 dark:text-slate-100">{{ generateLabel(generateRequest) }}</h3>
+        </div>
+
+        <p class="mt-3 text-sm text-slate-600 dark:text-slate-400">
+          @if (generateRequest === 'slips') {
+            Generates student assignment slips for <span class="font-medium text-slate-800 dark:text-slate-200">{{ monthLabel }}</span> and opens the print dialog.
+          } @else if (generateRequest === 'png') {
+            Renders letter-size schedule pages for <span class="font-medium text-slate-800 dark:text-slate-200">{{ monthLabel }}</span> and downloads them as PNG images.
+          } @else {
+            Renders letter-size schedule pages for <span class="font-medium text-slate-800 dark:text-slate-200">{{ monthLabel }}</span> and opens the print dialog. The output matches the PNG export exactly.
+          }
+        </p>
+
+        <dl class="mt-4 divide-y divide-slate-100 dark:divide-slate-700 rounded-xl border border-slate-200 dark:border-slate-700 text-sm">
+          <div class="flex items-center justify-between px-3.5 py-2.5">
+            <dt class="text-slate-500 dark:text-slate-400">Meeting</dt>
+            <dd class="font-medium text-slate-800 dark:text-slate-200">{{ mode === 'midweek' ? 'Midweek' : 'Weekend' }}</dd>
+          </div>
+          <div class="flex items-center justify-between px-3.5 py-2.5">
+            <dt class="text-slate-500 dark:text-slate-400">Weeks with programs</dt>
+            <dd class="font-medium text-slate-800 dark:text-slate-200">{{ generateSummary.weeks }} of {{ generateSummary.mondays }}</dd>
+          </div>
+          @if (generateRequest === 'slips') {
+            <div class="flex items-center justify-between px-3.5 py-2.5">
+              <dt class="text-slate-500 dark:text-slate-400">Assignment slips</dt>
+              <dd class="font-medium text-slate-800 dark:text-slate-200">{{ generateSummary.slips }}</dd>
+            </div>
+          }
+        </dl>
+
+        @if (generateRequest !== 'slips' && generateSummary.unassigned > 0) {
+          <div class="mt-3 flex items-start gap-2.5 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-900/20 px-3.5 py-3">
+            <i class="bi bi-exclamation-triangle-fill text-amber-500 mt-0.5"></i>
+            <p class="text-sm text-amber-800 dark:text-amber-300">
+              {{ generateSummary.unassigned }} assignment{{ generateSummary.unassigned === 1 ? ' is' : 's are' }} still open and will appear blank on the schedule.
+            </p>
+          </div>
+        }
+
+        <div class="mt-5 flex items-center justify-end gap-2">
+          <button type="button" (click)="onCancelGenerate()" [disabled]="generating"
+            class="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50">
+            Cancel
+          </button>
+          <button type="button" (click)="onConfirmGenerate()" [disabled]="generating"
+            class="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 transition-colors disabled:opacity-70">
+            @if (generating) {
+              <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+              Generating...
+            } @else {
+              Continue
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Import usage -->
+  @if (usageModalOpen) {
+    <div class="fixed inset-0 z-[120] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center px-4">
+      <div class="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl p-5">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
+              <i class="bi bi-activity"></i>
+            </div>
+            <div>
+              <h3 class="text-base font-semibold text-slate-900 dark:text-slate-100">Program Import Usage</h3>
+              <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                Each import is one Edge Function call plus a few page reads on wol.jw.org.
+              </p>
+            </div>
+          </div>
+          <button type="button" (click)="closeUsageModal()" aria-label="Close"
+            class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+
+        @if (importUsage) {
+          <table class="mt-4 w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-200 dark:border-slate-700">
+                <th class="text-left py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Month</th>
+                <th class="text-right py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Imports</th>
+                <th class="text-right py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Failed</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+              @for (month of importUsage.months; track month.label) {
+                <tr>
+                  <td class="py-2 text-slate-700 dark:text-slate-300">{{ month.label }}</td>
+                  <td class="py-2 text-right font-medium text-slate-900 dark:text-slate-100">{{ month.total }}</td>
+                  <td class="py-2 text-right" [class.text-red-600]="month.errors > 0" [class.dark:text-red-400]="month.errors > 0"
+                    [class.text-slate-400]="month.errors === 0" [class.dark:text-slate-500]="month.errors === 0">
+                    {{ month.errors }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+
+          @if (importUsage.recent.length > 0) {
+            <p class="mt-4 mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Recent imports</p>
+            <div class="max-h-36 overflow-y-auto space-y-1">
+              @for (log of importUsage.recent; track log.created_at) {
+                <p class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                  @if (log.status === 'success') {
+                    <i class="bi bi-check-circle-fill text-emerald-500"></i>
+                  } @else {
+                    <i class="bi bi-x-circle-fill text-red-500" [title]="log.detail || ''"></i>
+                  }
+                  {{ formatLogTime(log.created_at) }}
+                  @if (log.year && log.week) { &bull; {{ log.year }} week {{ log.week }} }
+                </p>
+              }
+            </div>
+          }
+        } @else {
+          <p class="mt-4 text-sm text-slate-400 dark:text-slate-500">No usage data yet. Counts appear after the next import.</p>
+        }
+
+        <p class="mt-4 text-xs text-slate-400 dark:text-slate-500">
+          Counters reset each calendar month. For scale: the Supabase free tier allows 500,000 function calls per month, so typical usage of a few imports per month is a rounding error.
+        </p>
+      </div>
+    </div>
+  }
+
+  <!-- Delete confirmation -->
+  @if (pendingDelete) {
+    <div class="fixed inset-0 z-[120] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center px-4">
+      <div class="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl p-5">
+        <div class="flex items-center gap-3">
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400">
+            <i class="bi bi-trash"></i>
+          </div>
+          <h3 class="text-base font-semibold text-slate-900 dark:text-slate-100">Delete Meeting Week?</h3>
+        </div>
+        <p class="mt-3 text-sm text-slate-600 dark:text-slate-400">
+          This permanently removes the program and all assignments for
+          <span class="font-medium text-slate-800 dark:text-slate-200">{{ formatWeekLabel(pendingDelete.week_of) }}</span>.
+        </p>
+        <div class="mt-5 flex items-center justify-end gap-2">
+          <button type="button" (click)="onCancelDelete()" [disabled]="!!deletingId"
+            class="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50">
+            Cancel
+          </button>
+          <button type="button" (click)="onDeleteWeek()" [disabled]="!!deletingId"
+            class="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-70">
+            @if (deletingId) {
+              <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+              Removing...
+            } @else {
+              Delete
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</section>
