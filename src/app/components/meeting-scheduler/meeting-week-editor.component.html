@@ -40,20 +40,18 @@
     @if (mode === 'midweek') {
       <label class="flex flex-col gap-1">
         <span class="ms-field-label">Cleaner of the Week</span>
-        <input
-          type="text"
+        <select
           [(ngModel)]="week.cleaning_group"
           name="cleaningGroup"
-          placeholder="e.g. Group 5"
-          list="cleaningGroupOptions"
-          class="ms-field" />
-        <datalist id="cleaningGroupOptions">
-          <option value="Group 1"></option>
-          <option value="Group 2"></option>
-          <option value="Group 3"></option>
-          <option value="Group 4"></option>
-          <option value="Group 5"></option>
-        </datalist>
+          class="ms-field">
+          <option [ngValue]="null">No group selected</option>
+          @if (week.cleaning_group && !cleaningGroups.includes(week.cleaning_group)) {
+            <option [ngValue]="week.cleaning_group">{{ week.cleaning_group }}</option>
+          }
+          @for (group of cleaningGroups; track group) {
+            <option [ngValue]="group">{{ group }}</option>
+          }
+        </select>
       </label>
     }
     <label class="flex flex-col gap-1" [class.md:col-span-2]="mode !== 'midweek'">

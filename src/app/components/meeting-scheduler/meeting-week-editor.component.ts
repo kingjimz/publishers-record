@@ -39,6 +39,9 @@ export class MeetingWeekEditorComponent {
   @Output() cancelEdit = new EventEmitter<void>();
 
   protected readonly partTypeLabels = PART_TYPE_LABELS;
+
+  /** Cleaning group choices for the Cleaner of the Week dropdown. */
+  protected readonly cleaningGroups = Array.from({ length: 10 }, (_, i) => `Group ${i + 1}`);
   protected readonly partTypeOptions = Object.keys(PART_TYPE_LABELS) as MeetingPartType[];
 
   protected readonly sections: { key: MeetingSection; label: string; icon: string }[] = [
