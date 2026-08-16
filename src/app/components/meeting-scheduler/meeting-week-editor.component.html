@@ -2,29 +2,51 @@
 
   <!-- Week type and notes -->
   <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-    <label class="flex flex-col gap-1">
-      <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Week Type</span>
-      <select
-        [ngModel]="week.week_type"
-        (ngModelChange)="onWeekTypeChange($event)"
-        name="weekType"
-        class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none">
-        <option value="regular">Regular week</option>
-        <option value="co_visit">Circuit overseer visit</option>
-        <option value="memorial">Memorial</option>
-        <option value="no_meeting">No meeting (assembly / convention)</option>
-      </select>
-    </label>
+    <div class="flex flex-col gap-1">
+      <label class="flex flex-col gap-1">
+        <span class="ms-field-label">Week Type</span>
+        <select
+          [ngModel]="pendingWeekType ?? week.week_type"
+          (ngModelChange)="onWeekTypeChange($event)"
+          name="weekType"
+          class="ms-field">
+          <option value="regular">Regular week</option>
+          <option value="co_visit">Circuit overseer visit</option>
+          <option value="memorial">Memorial</option>
+          <option value="no_meeting">No meeting (assembly / convention)</option>
+        </select>
+      </label>
+      @if (pendingWeekType) {
+        <div class="mt-1 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-900/20 px-3 py-2.5">
+          <div class="flex items-start gap-2">
+            <i class="bi bi-exclamation-triangle-fill text-amber-500 mt-0.5 text-sm"></i>
+            <p class="text-xs text-amber-800 dark:text-amber-300">
+              Changing the week type rebuilds the program and clears part assignments.
+            </p>
+          </div>
+          <div class="mt-2 flex items-center justify-end gap-1.5">
+            <button type="button" (click)="cancelWeekTypeChange()"
+              class="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-700/70 transition-colors">
+              Keep current
+            </button>
+            <button type="button" (click)="confirmWeekTypeChange()"
+              class="rounded-lg bg-amber-500 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-600 transition-colors">
+              Change week type
+            </button>
+          </div>
+        </div>
+      }
+    </div>
     @if (mode === 'midweek') {
       <label class="flex flex-col gap-1">
-        <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Cleaner of the Week</span>
+        <span class="ms-field-label">Cleaner of the Week</span>
         <input
           type="text"
           [(ngModel)]="week.cleaning_group"
           name="cleaningGroup"
           placeholder="e.g. Group 5"
           list="cleaningGroupOptions"
-          class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+          class="ms-field" />
         <datalist id="cleaningGroupOptions">
           <option value="Group 1"></option>
           <option value="Group 2"></option>
@@ -35,13 +57,13 @@
       </label>
     }
     <label class="flex flex-col gap-1" [class.md:col-span-2]="mode !== 'midweek'">
-      <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Notes</span>
+      <span class="ms-field-label">Notes</span>
       <input
         type="text"
         [(ngModel)]="week.notes"
         name="weekNotes"
         placeholder="Optional remarks for this week"
-        class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+        class="ms-field" />
     </label>
   </div>
 
@@ -49,128 +71,139 @@
 
     @if (mode === 'midweek') {
     <!-- ============ MIDWEEK MEETING ============ -->
-    <div class="rounded-xl border border-slate-200 dark:border-slate-700">
-      <div class="px-4 py-3 rounded-t-xl bg-primary-50 dark:bg-primary-900/20 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+    <div class="rounded-xl border border-slate-200 dark:border-slate-700/80 overflow-hidden">
+      <div class="px-4 py-3 bg-primary-50/70 dark:bg-primary-900/20 border-b border-primary-100 dark:border-primary-900/40 flex items-center gap-2">
         <i class="bi bi-book text-primary-600 dark:text-primary-400"></i>
-        <h4 class="text-sm font-semibold text-primary-800 dark:text-primary-300">Midweek Meeting (Christian Life and Ministry)</h4>
+        <h4 class="text-[13px] font-semibold text-primary-800 dark:text-primary-300">Midweek Meeting (Christian Life and Ministry)</h4>
       </div>
       <div class="p-4 space-y-4">
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <label class="flex flex-col gap-1">
-            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Meeting Date</span>
-            <input type="date" [(ngModel)]="week.midweek_date" name="midweekDate"
-              class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+            <span class="ms-field-label">Meeting Date</span>
+            <input type="date" [(ngModel)]="week.midweek_date" name="midweekDate" class="ms-field" />
           </label>
           <label class="flex flex-col gap-1">
-            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Weekly Bible Reading</span>
+            <span class="ms-field-label">Weekly Bible Reading</span>
             <input type="text" [(ngModel)]="week.weekly_bible_reading" name="weeklyBibleReading" placeholder="e.g. PROVERBS 12"
-              class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+              class="ms-field" />
           </label>
           <div class="flex flex-col gap-1">
-            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Songs (open / middle / close)</span>
+            <span class="ms-field-label">Songs (open / middle / close)</span>
             <div class="flex items-center gap-2">
               <input type="number" min="1" max="200" [(ngModel)]="week.song_opening" name="songOpening" placeholder="#"
-                class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+                class="ms-field px-2" />
               <input type="number" min="1" max="200" [(ngModel)]="week.song_middle" name="songMiddle" placeholder="#"
-                class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+                class="ms-field px-2" />
               <input type="number" min="1" max="200" [(ngModel)]="week.song_closing" name="songClosing" placeholder="#"
-                class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+                class="ms-field px-2" />
             </div>
           </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div class="flex flex-col gap-1">
-            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Chairman</span>
+            <span class="ms-field-label">Chairman</span>
             <app-assignee-picker [publishers]="publishers" [history]="history"
+              [historyDetail]="historyDetail" [historyKey]="'chairman_name'" [weekOf]="week.week_of"
               [eligibility]="roleEligibility('chairman_name')"
+              [weekAssignments]="draftAssignments" [slotLabel]="'Chairman'"
               [value]="week.chairman_name" (valueChange)="week.chairman_name = $event" />
           </div>
           <div class="flex flex-col gap-1">
-            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Opening Prayer</span>
+            <span class="ms-field-label">Opening Prayer</span>
             <app-assignee-picker [publishers]="publishers" [history]="history"
+              [historyDetail]="historyDetail" [historyKey]="'opening_prayer_name'" [weekOf]="week.week_of"
               [eligibility]="roleEligibility('opening_prayer_name')"
+              [weekAssignments]="draftAssignments" [slotLabel]="'Opening Prayer'"
               [value]="week.opening_prayer_name" (valueChange)="week.opening_prayer_name = $event" />
           </div>
           <div class="flex flex-col gap-1">
-            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Closing Prayer</span>
+            <span class="ms-field-label">Closing Prayer</span>
             <app-assignee-picker [publishers]="publishers" [history]="history"
+              [historyDetail]="historyDetail" [historyKey]="'closing_prayer_name'" [weekOf]="week.week_of"
               [eligibility]="roleEligibility('closing_prayer_name')"
+              [weekAssignments]="draftAssignments" [slotLabel]="'Closing Prayer'"
               [value]="week.closing_prayer_name" (valueChange)="week.closing_prayer_name = $event" />
           </div>
         </div>
 
         @if (!isMemorial) {
           @for (section of sections; track section.key) {
-            <div class="rounded-lg border border-slate-200 dark:border-slate-700">
-              <div class="px-3 py-2.5 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+            <div class="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+              <div class="px-3 py-2.5 bg-slate-50 dark:bg-slate-700/40 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
                 <span class="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                   <i class="bi {{ section.icon }}"></i>
                   {{ section.label }}
                 </span>
                 <button type="button" (click)="addPart(section.key)"
-                  class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300">
+                  class="ms-chip ms-chip-primary !py-1">
                   <i class="bi bi-plus-lg"></i> Add part
                 </button>
               </div>
               <div class="divide-y divide-slate-100 dark:divide-slate-700">
                 @if (partsFor(section.key).length === 0) {
-                  <p class="px-3 py-3 text-sm text-slate-400 dark:text-slate-500">No parts in this section.</p>
+                  <div class="m-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 px-3 py-3 text-center text-sm text-slate-400 dark:text-slate-500">
+                    No parts in this section.
+                  </div>
                 }
                 @for (part of partsFor(section.key); track trackPart($index); let first = $first; let last = $last) {
-                  <div class="p-3 grid grid-cols-1 lg:grid-cols-12 gap-2 items-start">
-                    <label class="flex flex-col gap-1" [class.lg:col-span-4]="section.key !== 'ministry'" [class.lg:col-span-3]="section.key === 'ministry'">
+                  <div class="p-3 grid grid-cols-2 lg:grid-cols-12 gap-2 items-start">
+                    <label class="flex flex-col gap-1 col-span-2" [class.lg:col-span-4]="section.key !== 'ministry'" [class.lg:col-span-3]="section.key === 'ministry'">
                       <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Part Title</span>
                       <input type="text" [(ngModel)]="part.title" [name]="'partTitle' + section.key + $index" placeholder="Part title"
-                        class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+                        class="ms-field" />
                     </label>
                     @if (section.key === 'ministry') {
-                      <label class="flex flex-col gap-1 lg:col-span-1">
+                      <label class="flex flex-col gap-1 col-span-2 lg:col-span-1">
                         <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Setting</span>
                         <input type="text" [(ngModel)]="part.setting" [name]="'partSetting' + section.key + $index" placeholder="e.g. HOUSE TO HOUSE"
-                          class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+                          class="ms-field" />
                       </label>
                     }
-                    <label class="flex flex-col gap-1 lg:col-span-1">
+                    <label class="flex flex-col gap-1 col-span-1 lg:col-span-1">
                       <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Min</span>
                       <input type="number" min="1" [(ngModel)]="part.duration_minutes" [name]="'partMinutes' + section.key + $index" placeholder="-"
-                        class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+                        class="ms-field px-2" />
                     </label>
-                    <label class="flex flex-col gap-1 lg:col-span-2">
+                    <label class="flex flex-col gap-1 col-span-1 lg:col-span-2">
                       <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Type</span>
                       <select [(ngModel)]="part.part_type" (ngModelChange)="onPartTypeChange(part)" [name]="'partType' + section.key + $index"
-                        class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none">
+                        class="ms-field px-2">
                         @for (type of partTypeOptions; track type) {
                           <option [value]="type">{{ partTypeLabels[type] }}</option>
                         }
                       </select>
                     </label>
-                    <div class="flex flex-col gap-1 lg:col-span-2">
+                    <div class="flex flex-col gap-1 col-span-2 lg:col-span-2">
                       <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Assigned To</span>
                       <app-assignee-picker [publishers]="publishers" [history]="history"
+                        [historyDetail]="historyDetail" [historyKey]="part.part_type" [weekOf]="week.week_of"
                         [eligibility]="partEligibility(part)"
+                        [weekAssignments]="draftAssignments" [slotLabel]="partSlotLabel(part)"
                         [value]="part.assignee_name" (valueChange)="part.assignee_name = $event" />
                     </div>
-                    <div class="flex flex-col gap-1 lg:col-span-2">
+                    <div class="flex flex-col gap-1 col-span-2 lg:col-span-2">
                       @if (allowsAssistant(part)) {
                         <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Assistant</span>
                         <app-assignee-picker [publishers]="publishers" [history]="history"
+                          [historyDetail]="historyDetail" [historyKey]="'assistant'" [weekOf]="week.week_of"
                           eligibility="any" [pairWith]="part.assignee_name" placeholder="Select assistant"
+                          [weekAssignments]="draftAssignments" [slotLabel]="'Assistant: ' + partSlotLabel(part)"
                           [value]="part.assistant_name" (valueChange)="part.assistant_name = $event" />
                       }
                     </div>
-                    <div class="flex items-end gap-1 lg:col-span-1 lg:pt-5">
+                    <div class="col-span-2 flex items-center justify-end gap-1 border-t border-slate-100 dark:border-slate-700/60 pt-2 lg:col-span-1 lg:border-0 lg:pt-5 lg:justify-start">
                       <button type="button" (click)="movePart(part, -1)" [disabled]="first"
-                        class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 disabled:opacity-30" title="Move up" aria-label="Move part up">
+                        class="ms-btn ms-btn-ghost h-8 w-8 disabled:opacity-30" title="Move up" aria-label="Move part up">
                         <i class="bi bi-arrow-up"></i>
                       </button>
                       <button type="button" (click)="movePart(part, 1)" [disabled]="last"
-                        class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 disabled:opacity-30" title="Move down" aria-label="Move part down">
+                        class="ms-btn ms-btn-ghost h-8 w-8 disabled:opacity-30" title="Move down" aria-label="Move part down">
                         <i class="bi bi-arrow-down"></i>
                       </button>
                       <button type="button" (click)="removePart(part)"
-                        class="p-1.5 text-red-400 hover:text-red-600 dark:hover:text-red-400" title="Remove part" aria-label="Remove part">
+                        class="ms-btn ms-btn-ghost h-8 w-8 !text-red-400 hover:!text-red-600 dark:hover:!text-red-400 hover:!bg-red-50 dark:hover:!bg-red-900/30" title="Remove part" aria-label="Remove part">
                         <i class="bi bi-trash"></i>
                       </button>
                     </div>
@@ -190,87 +223,98 @@
 
     @if (mode === 'weekend') {
     <!-- ============ WEEKEND MEETING ============ -->
-    <div class="rounded-xl border border-slate-200 dark:border-slate-700">
-      <div class="px-4 py-3 rounded-t-xl bg-emerald-50 dark:bg-emerald-900/20 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+    <div class="rounded-xl border border-slate-200 dark:border-slate-700/80 overflow-hidden">
+      <div class="px-4 py-3 bg-emerald-50/70 dark:bg-emerald-900/20 border-b border-emerald-100 dark:border-emerald-900/40 flex items-center gap-2">
         <i class="bi bi-mic text-emerald-600 dark:text-emerald-400"></i>
-        <h4 class="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Weekend Meeting</h4>
+        <h4 class="text-[13px] font-semibold text-emerald-800 dark:text-emerald-300">Weekend Meeting</h4>
       </div>
       <div class="p-4 space-y-4">
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <label class="flex flex-col gap-1">
-            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Meeting Date</span>
-            <input type="date" [(ngModel)]="week.weekend_date" name="weekendDate"
-              class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+            <span class="ms-field-label">Meeting Date</span>
+            <input type="date" [(ngModel)]="week.weekend_date" name="weekendDate" class="ms-field" />
           </label>
           <div class="flex flex-col gap-1">
-            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Chairman</span>
+            <span class="ms-field-label">Chairman</span>
             <app-assignee-picker [publishers]="publishers" [history]="history"
+              [historyDetail]="historyDetail" [historyKey]="'weekend_chairman_name'" [weekOf]="week.week_of"
               [eligibility]="roleEligibility('weekend_chairman_name')"
+              [weekAssignments]="draftAssignments" [slotLabel]="'Chairman (Weekend)'"
               [value]="week.weekend_chairman_name" (valueChange)="week.weekend_chairman_name = $event" />
           </div>
           <div class="flex flex-col gap-1">
-            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Songs (open / middle / close)</span>
+            <span class="ms-field-label">Songs (open / middle / close)</span>
             <div class="flex items-center gap-2">
               <input type="number" min="1" max="200" [(ngModel)]="week.weekend_song_opening" name="weekendSongOpening" placeholder="#"
-                class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+                class="ms-field px-2" />
               <input type="number" min="1" max="200" [(ngModel)]="week.weekend_song_middle" name="weekendSongMiddle" placeholder="#"
-                class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+                class="ms-field px-2" />
               <input type="number" min="1" max="200" [(ngModel)]="week.weekend_song_closing" name="weekendSongClosing" placeholder="#"
-                class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+                class="ms-field px-2" />
             </div>
           </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <label class="flex flex-col gap-1 sm:col-span-1">
-            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Public Talk Theme</span>
+            <span class="ms-field-label">Public Talk Theme</span>
             <input type="text" [(ngModel)]="week.public_talk_theme" name="publicTalkTheme" placeholder="Talk theme"
-              class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+              class="ms-field" />
           </label>
           <div class="flex flex-col gap-1">
-            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Speaker</span>
+            <span class="ms-field-label">Speaker</span>
             <app-assignee-picker [publishers]="publishers" [history]="history" [allowFreeText]="true"
+              [historyDetail]="historyDetail" [historyKey]="'public_talk_speaker_name'" [weekOf]="week.week_of"
               [eligibility]="roleEligibility('public_talk_speaker_name')" placeholder="Speaker (or type a visitor)"
+              [weekAssignments]="draftAssignments" [slotLabel]="'Public Talk'"
               [value]="week.public_talk_speaker_name" (valueChange)="week.public_talk_speaker_name = $event" />
           </div>
           <label class="flex flex-col gap-1">
-            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Speaker's Congregation</span>
+            <span class="ms-field-label">Speaker's Congregation</span>
             <input type="text" [(ngModel)]="week.speaker_congregation" name="speakerCongregation" placeholder="Leave blank if local"
-              class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+              class="ms-field" />
           </label>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <label class="flex flex-col gap-1">
-            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Watchtower Study Article</span>
+            <span class="ms-field-label">Watchtower Study Article</span>
             <input type="text" [(ngModel)]="week.wt_article_title" name="wtArticleTitle" placeholder="Study article title"
-              class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
+              class="ms-field" />
           </label>
           <div class="flex flex-col gap-1">
-            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">WT Conductor</span>
+            <span class="ms-field-label">WT Conductor</span>
             <app-assignee-picker [publishers]="publishers" [history]="history"
+              [historyDetail]="historyDetail" [historyKey]="'wt_conductor_name'" [weekOf]="week.week_of"
               [eligibility]="roleEligibility('wt_conductor_name')"
+              [weekAssignments]="draftAssignments" [slotLabel]="'WT Conductor'"
               [value]="week.wt_conductor_name" (valueChange)="week.wt_conductor_name = $event" />
           </div>
           <div class="flex flex-col gap-1">
-            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">WT Reader</span>
+            <span class="ms-field-label">WT Reader</span>
             <app-assignee-picker [publishers]="publishers" [history]="history"
+              [historyDetail]="historyDetail" [historyKey]="'wt_reader_name'" [weekOf]="week.week_of"
               [eligibility]="roleEligibility('wt_reader_name')"
+              [weekAssignments]="draftAssignments" [slotLabel]="'WT Reader'"
               [value]="week.wt_reader_name" (valueChange)="week.wt_reader_name = $event" />
           </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div class="flex flex-col gap-1">
-            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Opening Prayer</span>
+            <span class="ms-field-label">Opening Prayer</span>
             <app-assignee-picker [publishers]="publishers" [history]="history"
+              [historyDetail]="historyDetail" [historyKey]="'weekend_opening_prayer_name'" [weekOf]="week.week_of"
               [eligibility]="roleEligibility('weekend_opening_prayer_name')"
+              [weekAssignments]="draftAssignments" [slotLabel]="'Opening Prayer (Weekend)'"
               [value]="week.weekend_opening_prayer_name" (valueChange)="week.weekend_opening_prayer_name = $event" />
           </div>
           <div class="flex flex-col gap-1">
-            <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Closing Prayer</span>
+            <span class="ms-field-label">Closing Prayer</span>
             <app-assignee-picker [publishers]="publishers" [history]="history"
+              [historyDetail]="historyDetail" [historyKey]="'weekend_closing_prayer_name'" [weekOf]="week.week_of"
               [eligibility]="roleEligibility('weekend_closing_prayer_name')"
+              [weekAssignments]="draftAssignments" [slotLabel]="'Closing Prayer (Weekend)'"
               [value]="week.weekend_closing_prayer_name" (valueChange)="week.weekend_closing_prayer_name = $event" />
           </div>
         </div>
@@ -279,20 +323,27 @@
     }
 
   } @else {
-    <p class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 p-4 text-sm text-slate-500 dark:text-slate-400">
-      No meeting this week (assembly or convention). Only the notes above will appear on the printed schedule.
-    </p>
+    <div class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 p-4 flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
+      <i class="bi bi-calendar-x text-lg text-slate-400 dark:text-slate-500"></i>
+      <span>No meeting this week (assembly or convention). Only the notes above will appear on the printed schedule.</span>
+    </div>
   }
 
   <!-- Actions -->
-  <div class="flex items-center justify-end gap-2">
-    <button type="button" class="btn btn-outline-secondary px-4 py-2 rounded-lg text-sm font-medium"
+  <div class="sticky bottom-0 z-10 -mx-4 sm:-mx-5 -mb-4 sm:-mb-5 px-4 sm:px-5 py-3 bg-white/90 dark:bg-slate-800/90 backdrop-blur border-t border-slate-200 dark:border-slate-700 rounded-b-2xl flex items-center justify-end gap-2">
+    <button type="button" class="ms-btn ms-btn-secondary"
       [disabled]="saving" (click)="cancelEdit.emit()">
       Cancel
     </button>
-    <button type="button" class="btn btn-primary px-4 py-2 rounded-lg text-sm font-medium"
+    <button type="button" class="ms-btn ms-btn-primary"
       [disabled]="saving" (click)="save.emit()">
-      @if (saving) { Saving... } @else { Save Week }
+      @if (saving) {
+        <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+        Saving...
+      } @else {
+        <i class="bi bi-check-lg"></i>
+        Save Week
+      }
     </button>
   </div>
 </div>

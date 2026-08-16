@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -12,9 +12,11 @@ import {
   MeetingPart,
   MeetingScheduleService,
   MeetingWeek,
+  PublisherTypeHistory,
 } from '../../services/meeting-schedule.service';
 import { PublisherRecord, SupabaseService } from '../../services/supabase.service';
 import { ToastService } from '../../services/toast.service';
+import { downloadHtmlAsPdf } from '../../utils/html-to-pdf';
 import { downloadHtmlAsPngPages, renderHtmlToPngDataUrls } from '../../utils/html-to-png';
 import {
   buildAssignmentSlipsDocument,
@@ -32,7 +34,7 @@ const CONGREGATION_NAME = 'Bolaoen Congregation';
 const IMPORT_LANGUAGE_STORAGE_KEY = 'meeting-import-language';
 
 /** Output kinds routed through the generation confirmation modal. */
-type GenerateKind = 'print' | 'png' | 'slips';
+type GenerateKind = 'print' | 'png' | 'pdf' | 'slips';
 
 /** One row in the import progress modal. */
 interface ImportProgressStep {
@@ -82,6 +84,10 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
   protected weeks: MeetingWeek[] = [];
   protected publishers: PublisherRecord[] = [];
   protected history = new Map<string, string>();
+  protected historyDetail = new Map<string, PublisherTypeHistory>();
+
+  /** Lookback for rotation hints and the per-publisher history modal. */
+  private static readonly HISTORY_WINDOW_MONTHS = 12;
 
   protected loading = false;
   protected saving = false;
@@ -181,6 +187,26 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
+  /** Escape closes the topmost open modal, unless its action is in flight. */
+  @HostListener('document:keydown.escape')
+  protected closeTopModal(): void {
+    if (this.pendingDelete) {
+      if (!this.deletingId) this.onCancelDelete();
+      return;
+    }
+    if (this.generateRequest) {
+      if (!this.generating) this.onCancelGenerate();
+      return;
+    }
+    if (this.usageModalOpen) {
+      this.closeUsageModal();
+      return;
+    }
+    if (this.importModalOpen) {
+      this.closeImportModal();
+    }
+  }
+
   protected formatLogTime(iso: string): string {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return iso;
@@ -265,17 +291,18 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
 
       // Publisher pool follows the service year the selected month belongs to.
       const serviceYear = month - 1 >= 8 ? year : year - 1;
-      const sixMonthsAgo = this.isoMonthsAgo(6);
+      const historySince = this.isoMonthsAgo(MeetingScheduleComponent.HISTORY_WINDOW_MONTHS);
 
       const [weeks, publishers, history] = await Promise.all([
         this.meetingSchedule.getWeeksInRange(start, end),
-        this.supabase.getPublisherRecordsByServiceYear(serviceYear),
-        this.meetingSchedule.getAssignmentHistory(sixMonthsAgo),
+        this.loadPublisherPool(serviceYear),
+        this.meetingSchedule.getAssignmentHistory(historySince),
       ]);
 
       this.weeks = weeks;
       this.publishers = publishers;
-      this.history = history;
+      this.history = history.lastAssigned;
+      this.historyDetail = history.byPublisher;
     } catch (err) {
       this.weeks = [];
       this.toast.showError(err instanceof Error ? err.message : 'Failed to load the schedule.');
@@ -283,6 +310,37 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
       this.loading = false;
       this.cdr.detectChanges();
     }
+  }
+
+  /**
+   * Re-fetches assignment history after a save or delete. The service already
+   * invalidated its cache, so this pulls fresh rows; recency and pairing
+   * warnings then reflect the change while editing other weeks.
+   */
+  private async refreshHistory(): Promise<void> {
+    try {
+      const historySince = this.isoMonthsAgo(MeetingScheduleComponent.HISTORY_WINDOW_MONTHS);
+      const history = await this.meetingSchedule.getAssignmentHistory(historySince);
+      this.history = history.lastAssigned;
+      this.historyDetail = history.byPublisher;
+    } catch {
+      // Non-fatal: warnings keep using the previous snapshot until the next load.
+    }
+  }
+
+  /**
+   * Publisher pool for the assignee dropdowns. Prefers the service year the
+   * selected month belongs to, but months scheduled ahead of time (e.g. the
+   * first months of a service year with no records yet) fall back to the most
+   * recent earlier service year that has publishers, so the list is never empty.
+   */
+  private async loadPublisherPool(serviceYear: number): Promise<PublisherRecord[]> {
+    const maxFallbackYears = 3;
+    for (let offset = 0; offset <= maxFallbackYears; offset++) {
+      const publishers = await this.supabase.getPublisherRecordsByServiceYear(serviceYear - offset);
+      if (publishers.length > 0) return publishers;
+    }
+    return [];
   }
 
   private isoMonthsAgo(months: number): string {
@@ -315,8 +373,11 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
   /** Left accent color of a week card, keyed to its assignment status. */
   protected weekAccent(week: MeetingWeek | undefined): string {
     if (!week) return 'bg-slate-200 dark:bg-slate-600';
-    if (week.week_type === 'no_meeting') return 'bg-slate-400 dark:bg-slate-500';
-    return this.unassignedCount(week) > 0 ? 'bg-amber-400' : 'bg-emerald-400';
+    if (week.week_type === 'no_meeting')
+      return 'bg-gradient-to-b from-slate-300 to-slate-400 dark:from-slate-500 dark:to-slate-600';
+    return this.unassignedCount(week) > 0
+      ? 'bg-gradient-to-b from-amber-300 to-amber-500'
+      : 'bg-gradient-to-b from-emerald-300 to-emerald-500';
   }
 
   // ---------- Week cards ----------
@@ -413,6 +474,8 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
       this.weeks = [...others, saved].sort((a, b) => a.week_of.localeCompare(b.week_of));
       this.draft = null;
       this.toast.showSuccess('Meeting week saved.');
+      // Rebuild rotation history so the just-saved assignments warn in other weeks.
+      await this.refreshHistory();
     } catch (err) {
       this.toast.showError(err instanceof Error ? err.message : 'Failed to save the week.');
     } finally {
@@ -445,6 +508,7 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
       this.weeks = this.weeks.filter((w) => w.id !== week.id);
       if (this.draft?.week_of === week.week_of) this.draft = null;
       this.toast.showSuccess('Meeting week removed.');
+      await this.refreshHistory();
     } catch (err) {
       this.toast.showError(err instanceof Error ? err.message : 'Failed to remove the week.');
     } finally {
@@ -636,7 +700,7 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
   // ---------- Generation confirmation ----------
 
   protected get generating(): boolean {
-    return this.printingMonth || this.downloadingPng;
+    return this.printingMonth || this.downloadingPng || this.downloadingPdf;
   }
 
   /** Numbers shown in the generate confirmation modal. */
@@ -661,6 +725,8 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
         return 'Print Schedule';
       case 'png':
         return 'Save as PNG';
+      case 'pdf':
+        return 'Save as PDF';
       case 'slips':
         return 'Print Assignment Slips';
       default:
@@ -677,9 +743,9 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
       }
     } else if (this.monthWeeks.length === 0) {
       this.toast.showError(
-        kind === 'png'
-          ? 'No saved weeks in this month to export yet.'
-          : 'No saved weeks in this month to print yet.'
+        kind === 'print'
+          ? 'No saved weeks in this month to print yet.'
+          : 'No saved weeks in this month to export yet.'
       );
       return;
     }
@@ -699,6 +765,7 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
     try {
       if (kind === 'print') await this.onPrintMonth();
       else if (kind === 'png') await this.onDownloadPng();
+      else if (kind === 'pdf') await this.onDownloadPdf();
       else this.onPrintSlips();
     } finally {
       this.generateRequest = null;
@@ -780,6 +847,38 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
       this.toast.showError(err instanceof Error ? err.message : 'Could not create the PNG.');
     } finally {
       this.downloadingPng = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  protected downloadingPdf = false;
+
+  protected async onDownloadPdf(): Promise<void> {
+    const weeks = this.monthWeeks;
+    if (weeks.length === 0) {
+      this.toast.showError('No saved weeks in this month to export yet.');
+      return;
+    }
+    if (this.downloadingPdf) return;
+
+    this.downloadingPdf = true;
+    this.cdr.detectChanges();
+    try {
+      const html = buildMonthScheduleDocument(
+        weeks,
+        CONGREGATION_NAME,
+        this.monthLabel,
+        this.mode,
+        this.importLanguage
+      );
+      const pageCount = await downloadHtmlAsPdf(html, `${this.mode}-schedule-${this.selectedMonth}`);
+      this.toast.showSuccess(
+        pageCount > 1 ? `Schedule downloaded as a ${pageCount}-page PDF.` : 'Schedule downloaded as PDF.'
+      );
+    } catch (err) {
+      this.toast.showError(err instanceof Error ? err.message : 'Could not create the PDF.');
+    } finally {
+      this.downloadingPdf = false;
       this.cdr.detectChanges();
     }
   }

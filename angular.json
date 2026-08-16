@@ -31,7 +31,14 @@
             "define": {
               "OPENROUTER_API_KEY": "''",
               "OPENROUTER_MODEL": "'openrouter/free'"
-            }
+            },
+            "allowedCommonJsDependencies": [
+              "html2canvas",
+              "canvg",
+              "core-js",
+              "raf",
+              "rgbcolor"
+            ]
           },
           "configurations": {
             "production": {

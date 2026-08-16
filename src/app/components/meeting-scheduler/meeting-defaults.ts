@@ -1,10 +1,13 @@
 import {
+  AssignmentEvent,
   MeetingPart,
   MeetingPartType,
   MeetingWeek,
   MeetingWeekType,
+  PublisherTypeHistory,
 } from '../../services/meeting-schedule.service';
 import { PublisherRecord } from '../../services/supabase.service';
+import { displayPublisherName } from '../../utils/publisher-name';
 
 /**
  * Assignment eligibility per the CLM meeting instructions (S-38). These are
@@ -198,4 +201,139 @@ export function assistantWarning(
     return 'Assistants are usually the same gender as the student.';
   }
   return null;
+}
+
+/** Soft rotation window: the same part type within this many weeks draws a warning. */
+export const RECENCY_WINDOW_WEEKS = 8;
+
+/** Display labels for every history key: part types, week-level roles, assistant slots. */
+export const HISTORY_KEY_LABELS: Record<string, string> = {
+  ...PART_TYPE_LABELS,
+  chairman_name: 'Chairman (Midweek)',
+  opening_prayer_name: 'Opening Prayer (Midweek)',
+  closing_prayer_name: 'Closing Prayer (Midweek)',
+  weekend_chairman_name: 'Chairman (Weekend)',
+  public_talk_speaker_name: 'Public Talk Speaker',
+  wt_conductor_name: 'Watchtower Conductor',
+  wt_reader_name: 'Watchtower Reader',
+  weekend_opening_prayer_name: 'Opening Prayer (Weekend)',
+  weekend_closing_prayer_name: 'Closing Prayer (Weekend)',
+  assistant: 'Assistant',
+};
+
+const PRAYER_KEYS = [
+  'opening_prayer_name',
+  'closing_prayer_name',
+  'weekend_opening_prayer_name',
+  'weekend_closing_prayer_name',
+];
+
+/** History keys treated as equivalent for rotation purposes (a prayer is a prayer). */
+export function recencyKeyGroup(historyKey: string): string[] {
+  return PRAYER_KEYS.includes(historyKey) ? PRAYER_KEYS : [historyKey];
+}
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Nearest event to `weekOf` (either direction) within the window, skipping the week itself. */
+function nearestEventWithin(
+  events: Iterable<AssignmentEvent>,
+  weekOf: string,
+  windowWeeks: number,
+  matches: (event: AssignmentEvent) => boolean = () => true
+): { date: string; distanceMs: number } | null {
+  const target = new Date(`${weekOf}T00:00:00`).getTime();
+  if (Number.isNaN(target)) return null;
+
+  const windowMs = windowWeeks * WEEK_MS;
+  let nearest: { date: string; distanceMs: number } | null = null;
+  for (const event of events) {
+    if (event.date === weekOf || !matches(event)) continue;
+    const then = new Date(`${event.date}T00:00:00`).getTime();
+    if (Number.isNaN(then)) continue;
+    const distanceMs = Math.abs(target - then);
+    if (distanceMs <= windowMs && (!nearest || distanceMs < nearest.distanceMs)) {
+      nearest = { date: event.date, distanceMs };
+    }
+  }
+  return nearest;
+}
+
+/** "the same week" / "1 wk" / "5 wks" plus a short date, e.g. "(Jul 12)". */
+function distanceWording(nearest: { date: string; distanceMs: number }): {
+  distance: string;
+  when: string;
+  sameWeek: boolean;
+} {
+  const weeks = Math.round(nearest.distanceMs / WEEK_MS);
+  const when = new Date(`${nearest.date}T00:00:00`).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  });
+  return {
+    distance: weeks <= 0 ? 'the same week' : weeks === 1 ? '1 wk' : `${weeks} wks`,
+    when,
+    sameWeek: weeks <= 0,
+  };
+}
+
+/**
+ * Soft-warning text when the publisher already had this part type close to the
+ * week being scheduled (past or upcoming), or null when the rotation looks fine.
+ * The week being edited itself never warns, so a saved assignment stays quiet.
+ */
+export function recencyWarning(
+  detail: PublisherTypeHistory | undefined,
+  historyKey: string | null,
+  weekOf: string | null,
+  windowWeeks = RECENCY_WINDOW_WEEKS
+): string | null {
+  if (!detail || !historyKey || !weekOf) return null;
+
+  const events = recencyKeyGroup(historyKey).flatMap((key) => detail.get(key) ?? []);
+  const nearest = nearestEventWithin(events, weekOf, windowWeeks);
+  if (!nearest) return null;
+
+  const label = HISTORY_KEY_LABELS[historyKey] ?? historyKey;
+  const { distance, when, sameWeek } = distanceWording(nearest);
+  if (nearest.date > weekOf) {
+    return sameWeek
+      ? `Also has "${label}" ${distance} (${when}).`
+      : `Also has "${label}" ${distance} later (${when}).`;
+  }
+  return sameWeek
+    ? `Had "${label}" ${distance} (${when}).`
+    : `Had "${label}" ${distance} ago (${when}).`;
+}
+
+/** Soft rotation window for repeat student/assistant pairings (~6 months). */
+export const PARTNER_WINDOW_WEEKS = 26;
+
+/**
+ * Soft-warning text when the candidate already worked with the same partner
+ * (student/assistant pairing) close to the week being scheduled, or null when
+ * the pairing is fresh enough. Never blocks the assignment.
+ */
+export function partnerRecencyWarning(
+  detail: PublisherTypeHistory | undefined,
+  partner: string | null,
+  weekOf: string | null,
+  windowWeeks = PARTNER_WINDOW_WEEKS
+): string | null {
+  if (!detail || !partner || !weekOf) return null;
+
+  const events = [...detail.values()].flat();
+  const nearest = nearestEventWithin(events, weekOf, windowWeeks, (e) => e.partner === partner);
+  if (!nearest) return null;
+
+  const name = displayPublisherName(partner);
+  const { distance, when, sameWeek } = distanceWording(nearest);
+  if (nearest.date > weekOf) {
+    return sameWeek
+      ? `Also paired with ${name} ${distance} (${when}).`
+      : `Also paired with ${name} ${distance} later (${when}).`;
+  }
+  return sameWeek
+    ? `Was paired with ${name} ${distance} (${when}).`
+    : `Was paired with ${name} ${distance} ago (${when}).`;
 }

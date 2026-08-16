@@ -68,6 +68,97 @@ export interface MeetingWeek {
   parts: MeetingPart[];
 }
 
+/** One past assignment: the week it happened and the part title (null for week-level roles). */
+export interface AssignmentEvent {
+  date: string;
+  title: string | null;
+  /** The other person on the same part row (demo partner); null for solo parts and roles. */
+  partner: string | null;
+}
+
+/** Key: MeetingPartType, week-role column name, or 'assistant'. Events newest first. */
+export type PublisherTypeHistory = Map<string, AssignmentEvent[]>;
+
+export interface AssignmentHistory {
+  /** Most recent assignment date per publisher, folded across every role and part. */
+  lastAssigned: Map<string, string>;
+  /** Per-publisher breakdown by history key, for rotation counts and the history modal. */
+  byPublisher: Map<string, PublisherTypeHistory>;
+}
+
+type HistoryWeekRow = Omit<MeetingWeek, 'parts'> & { id: string };
+// `title` is nullable in the database even though the editor model requires it.
+type HistoryPartRow = Pick<
+  MeetingPart,
+  'meeting_id' | 'assignee_name' | 'assistant_name' | 'part_type'
+> & { title: string | null };
+
+/** Week-level name columns and the history key each one records under. */
+const WEEK_ROLE_COLUMNS = [
+  'chairman_name',
+  'opening_prayer_name',
+  'closing_prayer_name',
+  'weekend_chairman_name',
+  'public_talk_speaker_name',
+  'wt_conductor_name',
+  'wt_reader_name',
+  'weekend_opening_prayer_name',
+  'weekend_closing_prayer_name',
+] as const;
+
+/** Pure fold of week rows + part rows into the history maps; exported for tests. */
+export function buildAssignmentHistory(
+  weekRows: HistoryWeekRow[],
+  partRows: HistoryPartRow[]
+): AssignmentHistory {
+  const lastAssigned = new Map<string, string>();
+  const byPublisher = new Map<string, PublisherTypeHistory>();
+  const weekDateById = new Map<string, string>();
+
+  const note = (
+    name: string | null | undefined,
+    date: string | null | undefined,
+    key: string,
+    title: string | null = null,
+    partner: string | null | undefined = null
+  ) => {
+    const trimmed = name?.trim();
+    if (!trimmed || !date) return;
+    const existing = lastAssigned.get(trimmed);
+    if (!existing || date > existing) lastAssigned.set(trimmed, date);
+
+    let detail = byPublisher.get(trimmed);
+    if (!detail) {
+      detail = new Map<string, AssignmentEvent[]>();
+      byPublisher.set(trimmed, detail);
+    }
+    const events = detail.get(key) ?? [];
+    events.push({ date, title, partner: partner?.trim() || null });
+    detail.set(key, events);
+  };
+
+  for (const w of weekRows) {
+    weekDateById.set(w.id, w.week_of);
+    for (const column of WEEK_ROLE_COLUMNS) {
+      note(w[column], w.week_of, column);
+    }
+  }
+
+  for (const p of partRows) {
+    const date = weekDateById.get(p.meeting_id!);
+    note(p.assignee_name, date, p.part_type, p.title, p.assistant_name);
+    note(p.assistant_name, date, 'assistant', p.title, p.assignee_name);
+  }
+
+  for (const detail of byPublisher.values()) {
+    for (const events of detail.values()) {
+      events.sort((a, b) => b.date.localeCompare(a.date));
+    }
+  }
+
+  return { lastAssigned, byPublisher };
+}
+
 /** Parsed weekly program returned by the `fetch-meeting-program` Edge Function. */
 export interface ImportedProgramPart {
   title: string;
@@ -246,21 +337,14 @@ export class MeetingScheduleService {
   }
 
   /**
-   * Most recent assignment date per publisher name since `sinceIso`, folding both
-   * midweek part assignments (incl. assistants) and week-level roles. Used for
-   * "last assigned" rotation hints.
+   * Assignment history per publisher name since `sinceIso`, folding both midweek
+   * part assignments (incl. assistants) and week-level roles. `lastAssigned`
+   * drives the "last assigned" rotation hints; `byPublisher` breaks events down
+   * by part type / role for the history modal and recency warnings.
    */
-  async getAssignmentHistory(sinceIso: string): Promise<Map<string, string>> {
-    const cached = this.cache.get<Map<string, string>>(HISTORY_CACHE_KEY);
+  async getAssignmentHistory(sinceIso: string): Promise<AssignmentHistory> {
+    const cached = this.cache.get<AssignmentHistory>(HISTORY_CACHE_KEY);
     if (cached !== undefined) return cached;
-
-    const history = new Map<string, string>();
-    const note = (name: string | null | undefined, date: string | null | undefined) => {
-      const trimmed = name?.trim();
-      if (!trimmed || !date) return;
-      const existing = history.get(trimmed);
-      if (!existing || date > existing) history.set(trimmed, date);
-    };
 
     const { data: weeks, error } = await this.client
       .from('meeting_weeks')
@@ -270,36 +354,22 @@ export class MeetingScheduleService {
     if (error) throw error;
 
     const weekRows = (weeks ?? []) as (Omit<MeetingWeek, 'parts'> & { id: string })[];
-    const weekDateById = new Map<string, string>();
 
-    for (const w of weekRows) {
-      weekDateById.set(w.id, w.week_of);
-      note(w.chairman_name, w.week_of);
-      note(w.opening_prayer_name, w.week_of);
-      note(w.closing_prayer_name, w.week_of);
-      note(w.weekend_chairman_name, w.week_of);
-      note(w.public_talk_speaker_name, w.week_of);
-      note(w.wt_conductor_name, w.week_of);
-      note(w.wt_reader_name, w.week_of);
-      note(w.weekend_opening_prayer_name, w.week_of);
-      note(w.weekend_closing_prayer_name, w.week_of);
-    }
-
+    let partRows: (Pick<
+      MeetingPart,
+      'meeting_id' | 'assignee_name' | 'assistant_name' | 'part_type'
+    > & { title: string | null })[] = [];
     if (weekRows.length > 0) {
       const { data: parts, error: partsError } = await this.client
         .from('meeting_parts')
-        .select('meeting_id, assignee_name, assistant_name')
-        .in('meeting_id', [...weekDateById.keys()]);
+        .select('meeting_id, assignee_name, assistant_name, part_type, title')
+        .in('meeting_id', weekRows.map((w) => w.id));
 
       if (partsError) throw partsError;
-
-      for (const p of (parts ?? []) as Pick<MeetingPart, 'meeting_id' | 'assignee_name' | 'assistant_name'>[]) {
-        const date = weekDateById.get(p.meeting_id!);
-        note(p.assignee_name, date);
-        note(p.assistant_name, date);
-      }
+      partRows = (parts ?? []) as typeof partRows;
     }
 
+    const history = buildAssignmentHistory(weekRows, partRows);
     this.cache.set(HISTORY_CACHE_KEY, history);
     return history;
   }

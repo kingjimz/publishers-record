@@ -4,8 +4,14 @@ import {
   buildDefaultWeekParts,
   createEmptyWeek,
   eligibilityWarning,
+  partnerRecencyWarning,
+  recencyWarning,
   PART_TYPE_RULES,
 } from './meeting-defaults';
+import {
+  buildAssignmentHistory,
+  PublisherTypeHistory,
+} from '../../services/meeting-schedule.service';
 import { PublisherRecord } from '../../services/supabase.service';
 
 function publisher(overrides: Partial<PublisherRecord>): PublisherRecord {
@@ -111,5 +117,172 @@ describe('PART_TYPE_RULES', () => {
       .filter(([, rule]) => rule.assistant !== 'none')
       .map(([type]) => type);
     expect(withAssistant).toEqual(['student_demo']);
+  });
+});
+
+describe('recencyWarning', () => {
+  const detail = (key: string, dates: string[]): PublisherTypeHistory =>
+    new Map([[key, dates.map((date) => ({ date, title: null, partner: null }))]]);
+
+  it('warns when the same part type falls inside the window', () => {
+    expect(recencyWarning(detail('talk', ['2026-07-20']), 'talk', '2026-08-17')).toMatch(/Had/);
+  });
+
+  it('is silent outside the window', () => {
+    expect(recencyWarning(detail('talk', ['2026-01-05']), 'talk', '2026-08-17')).toBeNull();
+  });
+
+  it('never warns about the week being edited itself', () => {
+    expect(recencyWarning(detail('talk', ['2026-08-17']), 'talk', '2026-08-17')).toBeNull();
+  });
+
+  it('warns about a nearby future week (double booking)', () => {
+    expect(recencyWarning(detail('talk', ['2026-09-07']), 'talk', '2026-08-17')).toMatch(/Also has/);
+  });
+
+  it('treats all prayer slots as one rotation group', () => {
+    const d = detail('closing_prayer_name', ['2026-08-03']);
+    expect(recencyWarning(d, 'weekend_opening_prayer_name', '2026-08-17')).not.toBeNull();
+  });
+
+  it('ignores other part types', () => {
+    expect(recencyWarning(detail('cbs', ['2026-08-10']), 'talk', '2026-08-17')).toBeNull();
+  });
+
+  it('is silent for unknown publishers or missing context', () => {
+    expect(recencyWarning(undefined, 'talk', '2026-08-17')).toBeNull();
+    expect(recencyWarning(detail('talk', ['2026-08-10']), null, '2026-08-17')).toBeNull();
+    expect(recencyWarning(detail('talk', ['2026-08-10']), 'talk', null)).toBeNull();
+  });
+
+  it('respects a custom window', () => {
+    const d = detail('talk', ['2026-07-20']);
+    expect(recencyWarning(d, 'talk', '2026-08-17', 2)).toBeNull();
+    expect(recencyWarning(d, 'talk', '2026-08-17', 8)).not.toBeNull();
+  });
+});
+
+describe('partnerRecencyWarning', () => {
+  const detailWithPartner = (key: string, date: string, partner: string): PublisherTypeHistory =>
+    new Map([[key, [{ date, title: null, partner }]]]);
+
+  it('warns when the same pairing happened within 6 months', () => {
+    const d = detailWithPartner('assistant', '2026-06-01', 'Reyes, Pedro');
+    expect(partnerRecencyWarning(d, 'Reyes, Pedro', '2026-08-17')).toMatch(/paired with/);
+  });
+
+  it('is silent beyond the window', () => {
+    const d = detailWithPartner('assistant', '2025-12-01', 'Reyes, Pedro');
+    expect(partnerRecencyWarning(d, 'Reyes, Pedro', '2026-08-17')).toBeNull();
+  });
+
+  it('ignores different partners', () => {
+    const d = detailWithPartner('assistant', '2026-08-03', 'Cruz, Juan');
+    expect(partnerRecencyWarning(d, 'Reyes, Pedro', '2026-08-17')).toBeNull();
+  });
+
+  it('never warns about the week being edited itself', () => {
+    const d = detailWithPartner('assistant', '2026-08-17', 'Reyes, Pedro');
+    expect(partnerRecencyWarning(d, 'Reyes, Pedro', '2026-08-17')).toBeNull();
+  });
+
+  it('matches pairings recorded under any history key', () => {
+    const d = detailWithPartner('student_demo', '2026-07-06', 'Reyes, Pedro');
+    expect(partnerRecencyWarning(d, 'Reyes, Pedro', '2026-08-17')).not.toBeNull();
+  });
+
+  it('is silent for missing detail, partner, or week', () => {
+    const d = detailWithPartner('assistant', '2026-08-03', 'Reyes, Pedro');
+    expect(partnerRecencyWarning(undefined, 'Reyes, Pedro', '2026-08-17')).toBeNull();
+    expect(partnerRecencyWarning(d, null, '2026-08-17')).toBeNull();
+    expect(partnerRecencyWarning(d, 'Reyes, Pedro', null)).toBeNull();
+  });
+});
+
+describe('buildAssignmentHistory', () => {
+  const week = (id: string, weekOf: string, roles: Record<string, string> = {}) =>
+    ({ id, week_of: weekOf, ...roles }) as Parameters<typeof buildAssignmentHistory>[0][number];
+
+  it('folds week roles and parts into per-key events, newest first', () => {
+    const history = buildAssignmentHistory(
+      [
+        week('w1', '2026-08-03', { chairman_name: 'Cruz, Juan' }),
+        week('w2', '2026-08-10', { chairman_name: 'Cruz, Juan' }),
+      ],
+      [
+        { meeting_id: 'w1', assignee_name: 'Cruz, Juan', assistant_name: null, part_type: 'talk', title: 'Treasures Talk' },
+        { meeting_id: 'w2', assignee_name: 'Reyes, Pedro', assistant_name: 'Santos, Ana', part_type: 'student_demo', title: 'Following Up' },
+      ]
+    );
+
+    const juan = history.byPublisher.get('Cruz, Juan')!;
+    expect(juan.get('chairman_name')!.map((e) => e.date)).toEqual(['2026-08-10', '2026-08-03']);
+    expect(juan.get('talk')![0]).toEqual({
+      date: '2026-08-03',
+      title: 'Treasures Talk',
+      partner: null,
+    });
+
+    const ana = history.byPublisher.get('Santos, Ana')!;
+    expect(ana.get('assistant')![0].title).toBe('Following Up');
+  });
+
+  it('records the demo partner on both sides of the pairing', () => {
+    const history = buildAssignmentHistory(
+      [week('w1', '2026-08-03')],
+      [
+        {
+          meeting_id: 'w1',
+          assignee_name: 'Reyes, Pedro',
+          assistant_name: 'Santos, Ana',
+          part_type: 'student_demo',
+          title: 'Starting a Conversation',
+        },
+      ]
+    );
+
+    const student = history.byPublisher.get('Reyes, Pedro')!.get('student_demo')![0];
+    expect(student.partner).toBe('Santos, Ana');
+
+    const assistant = history.byPublisher.get('Santos, Ana')!.get('assistant')![0];
+    expect(assistant.partner).toBe('Reyes, Pedro');
+  });
+
+  it('leaves partner null for solo parts, roles, and blank assistants', () => {
+    const history = buildAssignmentHistory(
+      [week('w1', '2026-08-03', { chairman_name: 'Cruz, Juan' })],
+      [
+        {
+          meeting_id: 'w1',
+          assignee_name: 'Reyes, Pedro',
+          assistant_name: '  ',
+          part_type: 'bible_reading',
+          title: null,
+        },
+      ]
+    );
+
+    expect(history.byPublisher.get('Cruz, Juan')!.get('chairman_name')![0].partner).toBeNull();
+    expect(history.byPublisher.get('Reyes, Pedro')!.get('bible_reading')![0].partner).toBeNull();
+  });
+
+  it('keeps lastAssigned as the most recent date across everything', () => {
+    const history = buildAssignmentHistory(
+      [week('w1', '2026-08-03', { chairman_name: 'Cruz, Juan' })],
+      [{ meeting_id: 'w1', assignee_name: 'Cruz, Juan', assistant_name: null, part_type: 'talk', title: null }]
+    );
+    expect(history.lastAssigned.get('Cruz, Juan')).toBe('2026-08-03');
+  });
+
+  it('skips blank names and parts with unknown weeks', () => {
+    const history = buildAssignmentHistory(
+      [week('w1', '2026-08-03')],
+      [
+        { meeting_id: 'w1', assignee_name: '  ', assistant_name: null, part_type: 'talk', title: null },
+        { meeting_id: 'missing', assignee_name: 'Cruz, Juan', assistant_name: null, part_type: 'talk', title: null },
+      ]
+    );
+    expect(history.byPublisher.size).toBe(0);
+    expect(history.lastAssigned.size).toBe(0);
   });
 });

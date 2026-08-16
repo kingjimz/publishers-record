@@ -77,6 +77,84 @@
     @apply focus:border-primary-400 focus:ring-2 focus:ring-primary-200;
     @apply transition-all duration-300;
   }
+
+  /* Meeting scheduler (ms-) */
+  .ms-field {
+    @apply w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/60 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-sm outline-none transition-shadow duration-150;
+    @apply focus:border-primary-500 dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 dark:focus:ring-primary-400/25;
+  }
+
+  .ms-field-label {
+    @apply text-xs font-medium text-slate-600 dark:text-slate-400;
+  }
+
+  .ms-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl text-sm font-medium transition-all duration-150 active:scale-[0.98];
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900;
+    @apply disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .ms-btn-primary {
+    @apply bg-primary-600 px-4 py-2.5 font-semibold text-white shadow-sm hover:bg-primary-500 hover:shadow-md;
+  }
+
+  .ms-btn-secondary {
+    @apply border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700/70 hover:border-slate-300 dark:hover:border-slate-600;
+  }
+
+  .ms-btn-ghost {
+    @apply rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/70 hover:text-slate-700 dark:hover:text-slate-200 focus-visible:ring-slate-400;
+  }
+
+  .ms-btn-danger {
+    @apply bg-red-600 px-4 py-2.5 font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:ring-red-500;
+  }
+
+  .ms-chip {
+    @apply inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors duration-150 ring-1 ring-inset;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500;
+    @apply disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .ms-chip-primary {
+    @apply bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 ring-primary-600/10 dark:ring-primary-400/20 hover:bg-primary-100 dark:hover:bg-primary-900/50;
+  }
+
+  .ms-chip-neutral {
+    @apply bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 ring-slate-600/10 dark:ring-slate-400/10 hover:bg-slate-200 dark:hover:bg-slate-600;
+  }
+
+  .ms-chip-danger {
+    @apply bg-transparent text-red-600 dark:text-red-400 ring-transparent hover:bg-red-50 dark:hover:bg-red-900/30 hover:ring-red-600/10 dark:hover:ring-red-400/20;
+  }
+
+  .ms-badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset;
+  }
+
+  .ms-card {
+    @apply rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-800 shadow-soft;
+  }
+
+  .ms-modal-backdrop {
+    @apply fixed inset-0 z-[120] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center px-4;
+    animation: ms-backdrop-in 150ms ease-out;
+  }
+
+  .ms-modal-panel {
+    @apply w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl ring-1 ring-slate-900/5 dark:ring-white/5 p-5;
+    animation: ms-panel-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+@keyframes ms-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ms-panel-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @media (max-width: 768px) {

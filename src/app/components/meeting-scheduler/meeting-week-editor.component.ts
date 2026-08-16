@@ -8,6 +8,7 @@ import {
   MeetingSection,
   MeetingWeek,
   MeetingWeekType,
+  PublisherTypeHistory,
 } from '../../services/meeting-schedule.service';
 import { PublisherRecord } from '../../services/supabase.service';
 import { AssigneePickerComponent } from './assignee-picker.component';
@@ -32,6 +33,7 @@ export class MeetingWeekEditorComponent {
   @Input() mode: 'midweek' | 'weekend' = 'midweek';
   @Input() publishers: PublisherRecord[] = [];
   @Input() history: Map<string, string> = new Map();
+  @Input() historyDetail: Map<string, PublisherTypeHistory> = new Map();
   @Input() saving = false;
   @Output() save = new EventEmitter<void>();
   @Output() cancelEdit = new EventEmitter<void>();
@@ -57,6 +59,41 @@ export class MeetingWeekEditorComponent {
     return this.week.parts.filter((p) => p.section === section);
   }
 
+  /**
+   * name -> slot labels currently filled in this draft (including unsaved
+   * changes). Feeds the pickers' "already assigned this week" warning.
+   */
+  protected get draftAssignments(): Map<string, string[]> {
+    const map = new Map<string, string[]>();
+    const add = (name: string | null | undefined, label: string) => {
+      if (!name) return;
+      const list = map.get(name) ?? [];
+      list.push(label);
+      map.set(name, list);
+    };
+
+    add(this.week.chairman_name, 'Chairman');
+    add(this.week.opening_prayer_name, 'Opening Prayer');
+    add(this.week.closing_prayer_name, 'Closing Prayer');
+    add(this.week.weekend_chairman_name, 'Chairman (Weekend)');
+    add(this.week.public_talk_speaker_name, 'Public Talk');
+    add(this.week.wt_conductor_name, 'WT Conductor');
+    add(this.week.wt_reader_name, 'WT Reader');
+    add(this.week.weekend_opening_prayer_name, 'Opening Prayer (Weekend)');
+    add(this.week.weekend_closing_prayer_name, 'Closing Prayer (Weekend)');
+    for (const part of this.week.parts) {
+      const label = this.partSlotLabel(part);
+      add(part.assignee_name, label);
+      add(part.assistant_name, `Assistant: ${label}`);
+    }
+    return map;
+  }
+
+  /** Human label for a part slot; falls back to the part-type label for untitled parts. */
+  protected partSlotLabel(part: MeetingPart): string {
+    return part.title?.trim() || PART_TYPE_LABELS[part.part_type] || 'Part';
+  }
+
   protected roleEligibility(role: string): Eligibility {
     return ROLE_RULES[role] ?? 'any';
   }
@@ -69,14 +106,30 @@ export class MeetingWeekEditorComponent {
     return (PART_TYPE_RULES[part.part_type]?.assistant ?? 'none') !== 'none';
   }
 
+  /** Week type awaiting confirmation because applying it would clear assignments. */
+  protected pendingWeekType: MeetingWeekType | null = null;
+
   protected onWeekTypeChange(newType: MeetingWeekType): void {
     const hadAssignments = this.week.parts.some((p) => p.assignee_name || p.assistant_name);
-    if (hadAssignments) {
-      const proceed = window.confirm(
-        'Changing the week type rebuilds the midweek program and clears part assignments. Continue?'
-      );
-      if (!proceed) return;
+    if (hadAssignments && newType !== this.week.week_type) {
+      this.pendingWeekType = newType;
+      return;
     }
+    this.pendingWeekType = null;
+    this.applyWeekType(newType);
+  }
+
+  protected confirmWeekTypeChange(): void {
+    if (!this.pendingWeekType) return;
+    this.applyWeekType(this.pendingWeekType);
+    this.pendingWeekType = null;
+  }
+
+  protected cancelWeekTypeChange(): void {
+    this.pendingWeekType = null;
+  }
+
+  private applyWeekType(newType: MeetingWeekType): void {
     this.week.week_type = newType;
     this.week.parts = buildDefaultWeekParts(newType);
   }
