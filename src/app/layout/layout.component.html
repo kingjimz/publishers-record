@@ -141,6 +141,14 @@
                     class="block w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700">
                     Midweek Schedule
                   </a>
+                  <a routerLink="/meeting-scheduler/weekend" (click)="closeHeaderMenu()"
+                    class="block w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700">
+                    Weekend Schedule
+                  </a>
+                  <a routerLink="/meeting-scheduler/outlines" (click)="closeHeaderMenu()"
+                    class="block w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700">
+                    Talk Outlines
+                  </a>
                 }
               </div>
               <button type="button"
@@ -203,6 +211,16 @@
               class="inline-flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
               <i class="bi bi-book text-base"></i>
               Midweek Schedule
+            </a>
+            <a routerLink="/meeting-scheduler/weekend" routerLinkActive="text-primary-600 dark:text-primary-400 bg-slate-100 dark:bg-slate-700"
+              class="inline-flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+              <i class="bi bi-mic text-base"></i>
+              Weekend Schedule
+            </a>
+            <a routerLink="/meeting-scheduler/outlines" routerLinkActive="text-primary-600 dark:text-primary-400 bg-slate-100 dark:bg-slate-700"
+              class="inline-flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+              <i class="bi bi-card-list text-base"></i>
+              Talk Outlines
             </a>
           </nav>
         </div>

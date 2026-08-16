@@ -232,46 +232,85 @@
             <span class="ms-field-label">Meeting Date</span>
             <input type="date" [(ngModel)]="week.weekend_date" name="weekendDate" class="ms-field" />
           </label>
-          <div class="flex flex-col gap-1">
-            <span class="ms-field-label">Chairman</span>
-            <app-assignee-picker [publishers]="publishers" [history]="history"
-              [historyDetail]="historyDetail" [historyKey]="'weekend_chairman_name'" [weekOf]="week.week_of"
-              [eligibility]="roleEligibility('weekend_chairman_name')"
-              [weekAssignments]="draftAssignments" [slotLabel]="'Chairman (Weekend)'"
-              [value]="week.weekend_chairman_name" (valueChange)="week.weekend_chairman_name = $event" />
-          </div>
-          <div class="flex flex-col gap-1">
-            <span class="ms-field-label">Songs (open / middle / close)</span>
-            <div class="flex items-center gap-2">
-              <input type="number" min="1" max="200" [(ngModel)]="week.weekend_song_opening" name="weekendSongOpening" placeholder="#"
-                class="ms-field px-2" />
-              <input type="number" min="1" max="200" [(ngModel)]="week.weekend_song_middle" name="weekendSongMiddle" placeholder="#"
-                class="ms-field px-2" />
-              <input type="number" min="1" max="200" [(ngModel)]="week.weekend_song_closing" name="weekendSongClosing" placeholder="#"
-                class="ms-field px-2" />
+          <label class="flex flex-col gap-1">
+            <span class="ms-field-label">Weekend Event</span>
+            <select
+              [ngModel]="week.weekend_event"
+              (ngModelChange)="onWeekendEventChange($event)"
+              name="weekendEvent"
+              class="ms-field">
+              @for (event of weekendEvents; track event.label) {
+                <option [ngValue]="event.value">{{ event.label }}</option>
+              }
+            </select>
+          </label>
+          @if (!isWeekendEventWeek) {
+            <div class="flex flex-col gap-1">
+              <span class="ms-field-label">Chairman</span>
+              <app-assignee-picker [publishers]="publishers" [history]="history"
+                [historyDetail]="historyDetail" [historyKey]="'weekend_chairman_name'" [weekOf]="week.week_of"
+                [eligibility]="roleEligibility('weekend_chairman_name')"
+                [weekAssignments]="draftAssignments" [slotLabel]="'Chairman (Weekend)'"
+                [value]="week.weekend_chairman_name" (valueChange)="week.weekend_chairman_name = $event" />
             </div>
-          </div>
+            <div class="flex flex-col gap-1">
+              <span class="ms-field-label">Songs (open / middle / close)</span>
+              <div class="flex items-center gap-2">
+                <input type="number" min="1" max="200" [(ngModel)]="week.weekend_song_opening" name="weekendSongOpening" placeholder="#"
+                  class="ms-field px-2" />
+                <input type="number" min="1" max="200" [(ngModel)]="week.weekend_song_middle" name="weekendSongMiddle" placeholder="#"
+                  class="ms-field px-2" />
+                <input type="number" min="1" max="200" [(ngModel)]="week.weekend_song_closing" name="weekendSongClosing" placeholder="#"
+                  class="ms-field px-2" />
+              </div>
+            </div>
+          }
         </div>
 
+        @if (isWeekendEventWeek) {
+          <div class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 p-4 flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
+            <i class="bi bi-calendar-x text-lg text-slate-400 dark:text-slate-500"></i>
+            <span>
+              {{ week.weekend_event === 'assembly' ? 'Circuit assembly week' : 'Regional convention week' }}:
+              no local weekend meeting. The printed schedule shows this as a single row; use Notes to override its label.
+            </span>
+          </div>
+        } @else {
+
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <label class="flex flex-col gap-1 sm:col-span-1">
+          <div class="flex flex-col gap-1 sm:col-span-1">
             <span class="ms-field-label">Public Talk Theme</span>
-            <input type="text" [(ngModel)]="week.public_talk_theme" name="publicTalkTheme" placeholder="Talk theme"
-              class="ms-field" />
-          </label>
+            <app-talk-outline-picker
+              [outlines]="outlines"
+              [usage]="outlineUsage"
+              [talkNumber]="week.public_talk_number"
+              [theme]="week.public_talk_theme"
+              (picked)="onThemePicked($event)" />
+          </div>
           <div class="flex flex-col gap-1">
-            <span class="ms-field-label">Speaker</span>
+            <span class="ms-field-label">{{ week.weekend_event === 'symposium' ? 'First Speaker' : 'Speaker' }}</span>
             <app-assignee-picker [publishers]="publishers" [history]="history" [allowFreeText]="true"
               [historyDetail]="historyDetail" [historyKey]="'public_talk_speaker_name'" [weekOf]="week.week_of"
               [eligibility]="roleEligibility('public_talk_speaker_name')" placeholder="Speaker (or type a visitor)"
               [weekAssignments]="draftAssignments" [slotLabel]="'Public Talk'"
               [value]="week.public_talk_speaker_name" (valueChange)="week.public_talk_speaker_name = $event" />
           </div>
-          <label class="flex flex-col gap-1">
-            <span class="ms-field-label">Speaker's Congregation</span>
-            <input type="text" [(ngModel)]="week.speaker_congregation" name="speakerCongregation" placeholder="Leave blank if local"
-              class="ms-field" />
-          </label>
+          @if (week.weekend_event === 'symposium') {
+            <div class="flex flex-col gap-1">
+              <span class="ms-field-label">Second Speaker</span>
+              <app-assignee-picker [publishers]="publishers" [history]="history" [allowFreeText]="true"
+                [historyDetail]="historyDetail" [historyKey]="'public_talk_speaker2_name'" [weekOf]="week.week_of"
+                [eligibility]="roleEligibility('public_talk_speaker2_name')" placeholder="Second speaker"
+                [weekAssignments]="draftAssignments" [slotLabel]="'Public Talk (2nd Speaker)'"
+                [value]="week.public_talk_speaker2_name" (valueChange)="week.public_talk_speaker2_name = $event" />
+            </div>
+          } @else {
+            <label class="flex flex-col gap-1">
+              <span class="ms-field-label">Speaker's Congregation</span>
+              <input type="text" [(ngModel)]="week.speaker_congregation" name="speakerCongregation" placeholder="Leave blank if local"
+                class="ms-field" />
+            </label>
+          }
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -316,6 +355,8 @@
               [value]="week.weekend_closing_prayer_name" (valueChange)="week.weekend_closing_prayer_name = $event" />
           </div>
         </div>
+
+        }
       </div>
     </div>
     }

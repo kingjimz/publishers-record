@@ -1,0 +1,72 @@
+<div class="relative">
+  <button
+    #trigger
+    type="button"
+    (click)="openPanel()"
+    class="ms-field flex items-center justify-between gap-2 text-left">
+    <span class="truncate" [class.text-slate-900]="!!theme" [class.dark:text-slate-100]="!!theme"
+      [class.text-slate-400]="!theme" [class.dark:text-slate-500]="!theme">
+      {{ displayValue || placeholder }}
+    </span>
+    <i class="bi bi-chevron-down text-slate-400 text-xs shrink-0 transition-transform duration-150" [class.rotate-180]="open"></i>
+  </button>
+
+  @if (open) {
+    <!-- Below the sticky header (z-50) so scrolling never hides the header behind the dropdown. -->
+    <div class="fixed inset-0 z-30" (click)="closePanel()" aria-hidden="true"></div>
+    <div
+      class="fixed z-40 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-soft-lg ring-1 ring-slate-900/5 dark:ring-white/10 overflow-hidden"
+      [style.left.px]="panelLeft"
+      [style.top.px]="panelTop"
+      [style.width.px]="panelWidth">
+      <div class="p-2 border-b border-slate-100 dark:border-slate-700">
+        <input
+          type="text"
+          [(ngModel)]="query"
+          name="outlineQuery"
+          placeholder="Search by number or title..."
+          autocomplete="off"
+          class="ms-field" />
+      </div>
+      <div class="overflow-y-auto py-1" [style.max-height.px]="listMaxHeight">
+        @if (theme) {
+          <button type="button" (click)="clear()"
+            class="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+            <i class="bi bi-x-circle"></i>
+            Clear selection
+          </button>
+        }
+        @if (freeTextCandidate) {
+          <button type="button" (click)="selectFreeText(freeTextCandidate!)"
+            class="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-primary-600 dark:text-primary-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+            <i class="bi bi-plus-circle"></i>
+            <span class="truncate">Use "{{ freeTextCandidate }}" as free text</span>
+          </button>
+        }
+        @for (option of options; track option.talkNumber) {
+          <button type="button" (click)="select(option)"
+            class="w-full flex items-center justify-between gap-2 rounded-lg mx-1 px-2 py-2 text-sm min-w-0 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+            [class.bg-primary-50]="option.talkNumber === talkNumber"
+            [class.dark:bg-primary-900/30]="option.talkNumber === talkNumber">
+            <span class="truncate text-left text-slate-800 dark:text-slate-200">{{ option.label }}</span>
+            @if (option.lastGiven) {
+              <span class="shrink-0 rounded-full bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 dark:text-slate-400"
+                title="Last given">
+                {{ option.lastGiven }}
+              </span>
+            }
+          </button>
+        }
+        @if (options.length === 0 && !freeTextCandidate) {
+          <p class="px-3 py-3 text-sm text-slate-400 dark:text-slate-500 text-center">
+            @if (outlines.length === 0) {
+              No outlines imported yet. Upload the outlines file under Talk Outlines.
+            } @else {
+              No outlines match.
+            }
+          </p>
+        }
+      </div>
+    </div>
+  }
+</div>

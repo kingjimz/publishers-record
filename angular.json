@@ -19,10 +19,17 @@
           "options": {
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
+            "allowedCommonJsDependencies": ["sql.js"],
             "assets": [
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "sql-wasm*.wasm",
+                "input": "node_modules/sql.js/dist",
+                "output": "/assets",
+                "ignore": ["*-debug.wasm"]
               }
             ],
             "styles": [

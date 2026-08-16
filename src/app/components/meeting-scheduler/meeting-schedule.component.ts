@@ -15,6 +15,7 @@ import {
   PublisherTypeHistory,
 } from '../../services/meeting-schedule.service';
 import { PublisherRecord, SupabaseService } from '../../services/supabase.service';
+import { TalkOutline, TalkOutlineService } from '../../services/talk-outline.service';
 import { ToastService } from '../../services/toast.service';
 import { downloadHtmlAsPdf } from '../../utils/html-to-pdf';
 import { downloadHtmlAsPngPages, renderHtmlToPngDataUrls } from '../../utils/html-to-png';
@@ -24,6 +25,7 @@ import {
   buildMonthScheduleDocument,
   collectAssignmentSlips,
 } from '../../utils/meeting-schedule-print';
+import { buildWeekendRangeDocument, weekendRangeLabel } from '../../utils/weekend-range-print';
 import { displayPublisherName } from '../../utils/publisher-name';
 import { addDaysIso, buildDefaultWeekParts, createEmptyWeek } from './meeting-defaults';
 
@@ -86,6 +88,15 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
   protected history = new Map<string, string>();
   protected historyDetail = new Map<string, PublisherTypeHistory>();
 
+  /** S-99 outline library + last-given dates (weekend mode only). */
+  protected outlines: TalkOutline[] = [];
+  protected outlineUsage = new Map<number, string>();
+
+  /** Last month of the weekend export range (`yyyy-mm`); the start is the selected month. */
+  protected rangeEndMonth = MeetingScheduleComponent.currentMonth();
+  /** Weeks fetched for the pending weekend export, so the modal can show real counts. */
+  private rangeWeeks: MeetingWeek[] = [];
+
   /** Lookback for rotation hints and the per-publisher history modal. */
   private static readonly HISTORY_WINDOW_MONTHS = 12;
 
@@ -146,15 +157,21 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
   constructor(
     protected readonly supabase: SupabaseService,
     private readonly meetingSchedule: MeetingScheduleService,
+    private readonly talkOutlines: TalkOutlineService,
     private readonly toast: ToastService,
     private readonly cdr: ChangeDetectorRef,
     route: ActivatedRoute
   ) {
+    this.rangeEndMonth = this.shiftMonth(this.selectedMonth, 4);
     route.data.pipe(takeUntilDestroyed()).subscribe((data) => {
-      const mode = data['mode'];
-      this.mode = mode === 'weekend' ? 'weekend' : 'midweek';
+      const mode: SchedulerMode = data['mode'] === 'weekend' ? 'weekend' : 'midweek';
+      if (mode === this.mode) return;
+      this.mode = mode;
       this.draft = null;
-      this.cdr.detectChanges();
+      // route.data emits synchronously while the router is still creating this
+      // component (possibly inside a change-detection pass), so only schedule a
+      // pass here — a synchronous detectChanges() would nest CD and assert.
+      this.cdr.markForCheck();
     });
   }
 
@@ -263,14 +280,40 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
 
   protected async onPreviousMonth(): Promise<void> {
     this.selectedMonth = this.shiftMonth(this.selectedMonth, -1);
+    this.rangeEndMonth = this.shiftMonth(this.selectedMonth, 4);
     this.draft = null;
     await this.loadMonth();
   }
 
   protected async onNextMonth(): Promise<void> {
     this.selectedMonth = this.shiftMonth(this.selectedMonth, 1);
+    this.rangeEndMonth = this.shiftMonth(this.selectedMonth, 4);
     this.draft = null;
     await this.loadMonth();
+  }
+
+  /** Choices for the export range end: the selected month through +11 months. */
+  protected get rangeEndOptions(): { value: string; label: string }[] {
+    return Array.from({ length: 12 }, (_, i) => {
+      const value = this.shiftMonth(this.selectedMonth, i);
+      const [year, month] = value.split('-').map(Number);
+      return {
+        value,
+        label: new Date(year, month - 1, 1).toLocaleDateString('en-US', {
+          month: 'long',
+          year: 'numeric',
+        }),
+      };
+    });
+  }
+
+  protected onRangeEndChange(value: string): void {
+    this.rangeEndMonth = value < this.selectedMonth ? this.selectedMonth : value;
+  }
+
+  /** Range label shown in the app UI (English). */
+  protected get rangeLabel(): string {
+    return weekendRangeLabel(this.selectedMonth, this.rangeEndMonth, 'en');
   }
 
   private shiftMonth(month: string, delta: number): string {
@@ -303,12 +346,30 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
       this.publishers = publishers;
       this.history = history.lastAssigned;
       this.historyDetail = history.byPublisher;
+
+      if (this.mode === 'weekend') await this.loadOutlines();
     } catch (err) {
       this.weeks = [];
       this.toast.showError(err instanceof Error ? err.message : 'Failed to load the schedule.');
     } finally {
       this.loading = false;
       this.cdr.detectChanges();
+    }
+  }
+
+  /** Outline library + last-given dates for the Tema picker; best-effort. */
+  private async loadOutlines(): Promise<void> {
+    try {
+      const [outlines, usage] = await Promise.all([
+        this.talkOutlines.getOutlines(),
+        this.talkOutlines.getOutlineUsage(),
+      ]);
+      this.outlines = outlines;
+      this.outlineUsage = usage;
+    } catch {
+      // The picker degrades to free text when the library cannot load.
+      this.outlines = [];
+      this.outlineUsage = new Map();
     }
   }
 
@@ -393,9 +454,13 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
       return count;
     }
 
+    // Assembly/convention weekends have no local meeting to assign.
+    if (week.weekend_event === 'assembly' || week.weekend_event === 'convention') return 0;
+
     let count = 0;
     if (!week.weekend_chairman_name) count++;
     if (!week.public_talk_speaker_name) count++;
+    if (week.weekend_event === 'symposium' && !week.public_talk_speaker2_name) count++;
     if (!week.wt_conductor_name) count++;
     if (!week.wt_reader_name) count++;
     if (!week.weekend_opening_prayer_name) count++;
@@ -404,6 +469,18 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
   }
 
   protected weekTypeLabel(week: MeetingWeek): string | null {
+    if (this.mode === 'weekend') {
+      switch (week.weekend_event) {
+        case 'assembly':
+          return 'Circuit Assembly';
+        case 'convention':
+          return 'Regional Convention';
+        case 'special_talk':
+          return 'Special Talk';
+        case 'symposium':
+          return 'Symposium';
+      }
+    }
     switch (week.week_type) {
       case 'co_visit':
         return 'CO Visit';
@@ -469,13 +546,18 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
 
     try {
-      const saved = await this.meetingSchedule.saveWeek(this.draft);
+      // Weekend saves must never touch meeting_parts: the draft's copy of the
+      // midweek program may be stale and would overwrite newer assignments.
+      const saved = await this.meetingSchedule.saveWeek(this.draft, {
+        skipParts: this.mode === 'weekend',
+      });
       const others = this.weeks.filter((w) => w.week_of !== saved.week_of);
       this.weeks = [...others, saved].sort((a, b) => a.week_of.localeCompare(b.week_of));
       this.draft = null;
       this.toast.showSuccess('Meeting week saved.');
       // Rebuild rotation history so the just-saved assignments warn in other weeks.
       await this.refreshHistory();
+      if (this.mode === 'weekend') await this.loadOutlines();
     } catch (err) {
       this.toast.showError(err instanceof Error ? err.message : 'Failed to save the week.');
     } finally {
@@ -710,6 +792,14 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
     unassigned: number;
     slips: number;
   } {
+    if (this.mode === 'weekend') {
+      return {
+        weeks: this.rangeWeeks.length,
+        mondays: this.rangeWeeks.length,
+        unassigned: this.rangeWeeks.reduce((n, w) => n + this.unassignedCount(w), 0),
+        slips: 0,
+      };
+    }
     const weeks = this.monthWeeks;
     return {
       weeks: weeks.length,
@@ -717,6 +807,11 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
       unassigned: weeks.reduce((n, w) => n + this.unassignedCount(w), 0),
       slips: collectAssignmentSlips(weeks).length,
     };
+  }
+
+  /** What the pending export covers, for the confirmation modal. */
+  protected get generateScopeLabel(): string {
+    return this.mode === 'weekend' ? this.rangeLabel : this.monthLabel;
   }
 
   protected generateLabel(kind: GenerateKind | null): string {
@@ -734,11 +829,23 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
     }
   }
 
-  protected onRequestGenerate(kind: GenerateKind): void {
+  protected async onRequestGenerate(kind: GenerateKind): Promise<void> {
     if (this.generating) return;
     if (kind === 'slips') {
       if (collectAssignmentSlips(this.monthWeeks).length === 0) {
         this.toast.showError('No assigned student parts in this month yet.');
+        return;
+      }
+    } else if (this.mode === 'weekend') {
+      // The weekend export covers the whole rotation range, not one month.
+      try {
+        this.rangeWeeks = await this.fetchRangeWeeks();
+      } catch (err) {
+        this.toast.showError(err instanceof Error ? err.message : 'Failed to load the range.');
+        return;
+      }
+      if (this.rangeWeeks.length === 0) {
+        this.toast.showError(`No saved weeks in ${this.rangeLabel} to export yet.`);
         return;
       }
     } else if (this.monthWeeks.length === 0) {
@@ -751,6 +858,24 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
     }
     this.generateRequest = kind;
     this.cdr.detectChanges();
+  }
+
+  /** Saved weeks whose Sunday falls inside [selectedMonth, rangeEndMonth]. */
+  private async fetchRangeWeeks(): Promise<MeetingWeek[]> {
+    const [startYear, startMonth] = this.selectedMonth.split('-').map(Number);
+    const [endYear, endMonth] = this.rangeEndMonth.split('-').map(Number);
+    // Widen by a week on both sides: a Sunday can belong to a week_of in the
+    // neighboring month. Rows are then filtered by their actual Sunday.
+    const start = `${startYear}-${String(startMonth).padStart(2, '0')}-01`;
+    const lastDay = new Date(endYear, endMonth, 0).getDate();
+    const end = `${endYear}-${String(endMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    const weeks = await this.meetingSchedule.getWeeksInRange(addDaysIso(start, -7), end);
+
+    const sundayOf = (w: MeetingWeek) => w.weekend_date ?? addDaysIso(w.week_of, 6);
+    return weeks.filter((w) => {
+      const sunday = sundayOf(w);
+      return sunday >= start && sunday <= end;
+    });
   }
 
   protected onCancelGenerate(): void {
@@ -784,30 +909,51 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
   protected printingMonth = false;
 
   /**
+   * Document + labels for the pending export. Midweek exports the selected
+   * month's sheet; weekend exports the compact range table (rotation cycle).
+   */
+  private buildExportDocument(): { html: string; scopeLabel: string; fileName: string } | null {
+    if (this.mode === 'weekend') {
+      if (this.rangeWeeks.length === 0) return null;
+      return {
+        html: buildWeekendRangeDocument(
+          this.rangeWeeks,
+          CONGREGATION_NAME,
+          weekendRangeLabel(this.selectedMonth, this.rangeEndMonth, this.importLanguage),
+          this.importLanguage
+        ),
+        scopeLabel: this.rangeLabel,
+        fileName: `weekend-schedule-${this.selectedMonth}-to-${this.rangeEndMonth}`,
+      };
+    }
+
+    const weeks = this.monthWeeks;
+    if (weeks.length === 0) return null;
+    return {
+      html: buildMonthScheduleDocument(weeks, CONGREGATION_NAME, this.monthLabel, this.importLanguage),
+      scopeLabel: this.monthLabel,
+      fileName: `midweek-schedule-${this.selectedMonth}`,
+    };
+  }
+
+  /**
    * Prints the same PNG pages the download produces, so the print preview is
    * identical to the exported image.
    */
   protected async onPrintMonth(): Promise<void> {
-    const weeks = this.monthWeeks;
-    if (weeks.length === 0) {
-      this.toast.showError('No saved weeks in this month to print yet.');
+    if (this.printingMonth) return;
+    const doc = this.buildExportDocument();
+    if (!doc) {
+      this.toast.showError('No saved weeks to print yet.');
       return;
     }
-    if (this.printingMonth) return;
 
     this.printingMonth = true;
     this.cdr.detectChanges();
     try {
-      const html = buildMonthScheduleDocument(
-        weeks,
-        CONGREGATION_NAME,
-        this.monthLabel,
-        this.mode,
-        this.importLanguage
-      );
-      const pageImages = await renderHtmlToPngDataUrls(html);
+      const pageImages = await renderHtmlToPngDataUrls(doc.html);
       this.openPrintDocument(
-        buildImagePrintDocument(pageImages, `${this.mode} schedule ${this.monthLabel}`)
+        buildImagePrintDocument(pageImages, `${this.mode} schedule ${doc.scopeLabel}`)
       );
     } catch (err) {
       this.toast.showError(
@@ -822,24 +968,17 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
   protected downloadingPng = false;
 
   protected async onDownloadPng(): Promise<void> {
-    const weeks = this.monthWeeks;
-    if (weeks.length === 0) {
-      this.toast.showError('No saved weeks in this month to export yet.');
+    if (this.downloadingPng) return;
+    const doc = this.buildExportDocument();
+    if (!doc) {
+      this.toast.showError('No saved weeks to export yet.');
       return;
     }
-    if (this.downloadingPng) return;
 
     this.downloadingPng = true;
     this.cdr.detectChanges();
     try {
-      const html = buildMonthScheduleDocument(
-        weeks,
-        CONGREGATION_NAME,
-        this.monthLabel,
-        this.mode,
-        this.importLanguage
-      );
-      const pageCount = await downloadHtmlAsPngPages(html, `${this.mode}-schedule-${this.selectedMonth}`);
+      const pageCount = await downloadHtmlAsPngPages(doc.html, doc.fileName);
       this.toast.showSuccess(
         pageCount > 1 ? `Schedule downloaded as ${pageCount} PNG pages.` : 'Schedule downloaded as PNG.'
       );
@@ -854,24 +993,17 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
   protected downloadingPdf = false;
 
   protected async onDownloadPdf(): Promise<void> {
-    const weeks = this.monthWeeks;
-    if (weeks.length === 0) {
-      this.toast.showError('No saved weeks in this month to export yet.');
+    if (this.downloadingPdf) return;
+    const doc = this.buildExportDocument();
+    if (!doc) {
+      this.toast.showError('No saved weeks to export yet.');
       return;
     }
-    if (this.downloadingPdf) return;
 
     this.downloadingPdf = true;
     this.cdr.detectChanges();
     try {
-      const html = buildMonthScheduleDocument(
-        weeks,
-        CONGREGATION_NAME,
-        this.monthLabel,
-        this.mode,
-        this.importLanguage
-      );
-      const pageCount = await downloadHtmlAsPdf(html, `${this.mode}-schedule-${this.selectedMonth}`);
+      const pageCount = await downloadHtmlAsPdf(doc.html, doc.fileName);
       this.toast.showSuccess(
         pageCount > 1 ? `Schedule downloaded as a ${pageCount}-page PDF.` : 'Schedule downloaded as PDF.'
       );

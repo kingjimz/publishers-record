@@ -41,6 +41,7 @@ export const ROLE_RULES: Record<string, Eligibility> = {
   closing_prayer_name: 'baptized_male',
   weekend_chairman_name: 'elder_ms',
   public_talk_speaker_name: 'elder_ms',
+  public_talk_speaker2_name: 'elder_ms',
   wt_conductor_name: 'elder',
   wt_reader_name: 'male',
   weekend_opening_prayer_name: 'baptized_male',
@@ -140,9 +141,12 @@ export function createEmptyWeek(weekOfIso: string, weekType: MeetingWeekType = '
     opening_prayer_name: null,
     closing_prayer_name: null,
     weekend_date: addDaysIso(weekOfIso, 6),
+    weekend_event: null,
     weekend_chairman_name: null,
     public_talk_theme: null,
+    public_talk_number: null,
     public_talk_speaker_name: null,
+    public_talk_speaker2_name: null,
     speaker_congregation: null,
     wt_article_title: null,
     wt_conductor_name: null,
@@ -214,6 +218,7 @@ export const HISTORY_KEY_LABELS: Record<string, string> = {
   closing_prayer_name: 'Closing Prayer (Midweek)',
   weekend_chairman_name: 'Chairman (Weekend)',
   public_talk_speaker_name: 'Public Talk Speaker',
+  public_talk_speaker2_name: 'Public Talk Speaker',
   wt_conductor_name: 'Watchtower Conductor',
   wt_reader_name: 'Watchtower Reader',
   weekend_opening_prayer_name: 'Opening Prayer (Weekend)',
@@ -228,9 +233,13 @@ const PRAYER_KEYS = [
   'weekend_closing_prayer_name',
 ];
 
+const SPEAKER_KEYS = ['public_talk_speaker_name', 'public_talk_speaker2_name'];
+
 /** History keys treated as equivalent for rotation purposes (a prayer is a prayer). */
 export function recencyKeyGroup(historyKey: string): string[] {
-  return PRAYER_KEYS.includes(historyKey) ? PRAYER_KEYS : [historyKey];
+  if (PRAYER_KEYS.includes(historyKey)) return PRAYER_KEYS;
+  if (SPEAKER_KEYS.includes(historyKey)) return SPEAKER_KEYS;
+  return [historyKey];
 }
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;

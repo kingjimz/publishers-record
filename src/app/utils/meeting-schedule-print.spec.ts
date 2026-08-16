@@ -23,18 +23,12 @@ function sampleWeek(): MeetingWeek {
 
 describe('buildMonthScheduleDocument', () => {
   it('renders the midweek document with section bands and no weekend content', () => {
-    const html = buildMonthScheduleDocument(
-      [sampleWeek()],
-      'Test Congregation',
-      'August 2026',
-      'midweek'
-    );
+    const html = buildMonthScheduleDocument([sampleWeek()], 'Test Congregation', 'August 2026');
     expect(html).toContain("TREASURES FROM GOD'S WORD");
     expect(html).toContain('LIVING AS CHRISTIANS');
     expect(html).toContain('John Chairman');
     expect(html).toContain('PROVERBS 12');
     expect(html).not.toContain('Visiting Speaker');
-    expect(html).not.toContain('WATCHTOWER STUDY');
   });
 
   it('renders the manual-sheet details: week range, cleaner group, labels, numbering', () => {
@@ -42,7 +36,7 @@ describe('buildMonthScheduleDocument', () => {
     week.cleaning_group = 'Group 1';
     const demoPart = week.parts.find((p) => p.part_type === 'student_demo')!;
     demoPart.setting = 'Panagbalaybalay';
-    const html = buildMonthScheduleDocument([week], 'Test Congregation', 'August 2026', 'midweek', 'ilo');
+    const html = buildMonthScheduleDocument([week], 'Test Congregation', 'August 2026', 'ilo');
     expect(html).toContain('AGOSTO 10 – 16');
     expect(html).toContain('GAMENG MANIPUD ITI SAO TI DIOS');
     expect(html).toContain('GROUP 1');
@@ -59,34 +53,18 @@ describe('buildMonthScheduleDocument', () => {
       ...w,
       week_of: `2026-08-${String(3 + i * 7).padStart(2, '0')}`,
     }));
-    const html = buildMonthScheduleDocument(weeks, 'Test Congregation', 'August 2026', 'midweek');
+    const html = buildMonthScheduleDocument(weeks, 'Test Congregation', 'August 2026');
     expect(html.match(/class="sheet-page"/g)?.length).toBe(2);
     // CBS reader merges into the CBS row; the reader never gets its own number.
     expect(html).not.toContain('CBS Reader</strong>');
-  });
-
-  it('renders the weekend document with speaker and study, no CLM sections', () => {
-    const html = buildMonthScheduleDocument(
-      [sampleWeek()],
-      'Test Congregation',
-      'August 2026',
-      'weekend'
-    );
-    expect(html).toContain('PUBLIC TALK');
-    expect(html).toContain('WATCHTOWER STUDY');
-    expect(html).toContain('Visiting Speaker, North Congregation');
-    expect(html).toContain('Sam Conductor');
-    expect(html).not.toContain("TREASURES FROM GOD'S WORD");
-    expect(html).not.toContain('John Chairman');
   });
 
   it('renders no-meeting weeks as a single line', () => {
     const week = sampleWeek();
     week.week_type = 'no_meeting';
     week.parts = [];
-    const html = buildMonthScheduleDocument([week], 'Test Congregation', 'August 2026', 'midweek');
+    const html = buildMonthScheduleDocument([week], 'Test Congregation', 'August 2026');
     expect(html).toContain('No meeting this week');
-    expect(html).not.toContain('PUBLIC TALK');
   });
 
   it('prints publisher names in reading order, not the stored "Lastname, Firstname"', () => {
@@ -96,7 +74,7 @@ describe('buildMonthScheduleDocument', () => {
     const reading = week.parts.find((p) => p.part_type === 'bible_reading')!;
     reading.assignee_name = 'Dacanay, King Jims';
 
-    const html = buildMonthScheduleDocument([week], 'Test Congregation', 'August 2026', 'midweek');
+    const html = buildMonthScheduleDocument([week], 'Test Congregation', 'August 2026');
     expect(html).toContain('Eliezer Peñera');
     expect(html).toContain('Leniel Galase');
     expect(html).toContain('King Jims Dacanay');
@@ -107,7 +85,7 @@ describe('buildMonthScheduleDocument', () => {
   it('escapes HTML in user content', () => {
     const week = sampleWeek();
     week.chairman_name = '<script>alert(1)</script>';
-    const html = buildMonthScheduleDocument([week], 'Test Congregation', 'August 2026', 'midweek');
+    const html = buildMonthScheduleDocument([week], 'Test Congregation', 'August 2026');
     expect(html).not.toContain('<script>alert(1)</script>');
     expect(html).toContain('&lt;script&gt;');
   });

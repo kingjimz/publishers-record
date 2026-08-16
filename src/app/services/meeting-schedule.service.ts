@@ -5,6 +5,7 @@ import { CacheService } from './cache.service';
 import { SupabaseService } from './supabase.service';
 
 export type MeetingWeekType = 'regular' | 'co_visit' | 'no_meeting' | 'memorial';
+export type WeekendEvent = 'assembly' | 'convention' | 'special_talk' | 'symposium';
 export type MeetingSection = 'treasures' | 'ministry' | 'living';
 export type MeetingPartType =
   | 'talk'
@@ -52,9 +53,16 @@ export interface MeetingWeek {
   closing_prayer_name: string | null;
 
   weekend_date: string | null;
+  /** Special weekend event; null for a regular public talk week. */
+  weekend_event: WeekendEvent | null;
   weekend_chairman_name: string | null;
+  /** Talk title only; the S-99 outline number lives in public_talk_number. */
   public_talk_theme: string | null;
+  /** Null for free-text themes (e.g. the drama during a C.O. visit). */
+  public_talk_number: number | null;
   public_talk_speaker_name: string | null;
+  /** Second speaker when weekend_event is 'symposium'. */
+  public_talk_speaker2_name: string | null;
   speaker_congregation: string | null;
   wt_article_title: string | null;
   wt_conductor_name: string | null;
@@ -100,6 +108,7 @@ const WEEK_ROLE_COLUMNS = [
   'closing_prayer_name',
   'weekend_chairman_name',
   'public_talk_speaker_name',
+  'public_talk_speaker2_name',
   'wt_conductor_name',
   'wt_reader_name',
   'weekend_opening_prayer_name',
@@ -278,8 +287,12 @@ export class MeetingScheduleService {
   /**
    * Upserts the week row (conflict on `week_of`), then replaces its parts.
    * Delete-and-reinsert keeps ordering simple; the part list is small.
+   *
+   * `skipParts` leaves `meeting_parts` completely untouched — the weekend page
+   * saves week-level columns only and must never replace the midweek program
+   * with its own (possibly stale) copy of the parts.
    */
-  async saveWeek(week: MeetingWeek): Promise<MeetingWeek> {
+  async saveWeek(week: MeetingWeek, options?: { skipParts?: boolean }): Promise<MeetingWeek> {
     const { parts, ...weekRow } = week;
 
     const { data, error } = await this.client
@@ -290,6 +303,12 @@ export class MeetingScheduleService {
 
     if (error) throw error;
     const saved = data as Omit<MeetingWeek, 'parts'> & { id: string };
+
+    if (options?.skipParts) {
+      this.cache.invalidatePrefix(MEETINGS_CACHE_PREFIX);
+      this.cache.invalidate(HISTORY_CACHE_KEY);
+      return { ...saved, parts };
+    }
 
     const { error: deleteError } = await this.client
       .from('meeting_parts')

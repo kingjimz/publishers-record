@@ -6,7 +6,8 @@ import {
 import { STUDENT_PART_TYPES } from '../components/meeting-scheduler/meeting-defaults';
 import { displayPublisherName } from './publisher-name';
 
-function esc(s: string | null | undefined): string {
+/** XML-safe escape (numeric entities only), shared with the weekend range export. */
+export function esc(s: string | null | undefined): string {
   if (s == null || s === '') return '';
   return String(s)
     .replace(/&/g, '&amp;')
@@ -16,7 +17,7 @@ function esc(s: string | null | undefined): string {
 }
 
 /** Escaped publisher name in reading order ("Firstname Lastname"). */
-function escName(s: string | null | undefined): string {
+export function escName(s: string | null | undefined): string {
   return esc(displayPublisherName(s));
 }
 
@@ -34,12 +35,10 @@ function shortDate(iso: string | null | undefined): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export type ScheduleDocumentMode = 'midweek' | 'weekend';
 export type ScheduleLanguage = 'en' | 'ilo';
 
 interface PrintLabels {
   midweekTitle: string;
-  weekendTitle: string;
   cleaner: string;
   chairman: string;
   prayer: string;
@@ -54,8 +53,6 @@ interface PrintLabels {
   householder: string;
   conductor: string;
   reader: string;
-  publicTalk: string;
-  watchtowerStudy: string;
   noMeeting: string;
   coVisit: string;
   memorial: string;
@@ -65,7 +62,6 @@ interface PrintLabels {
 const LABELS: Record<ScheduleLanguage, PrintLabels> = {
   en: {
     midweekTitle: 'Midweek Meeting Schedule',
-    weekendTitle: 'Weekend Meeting Schedule',
     cleaner: 'Cleaner of the week',
     chairman: 'Chairman:',
     prayer: 'Prayer:',
@@ -84,8 +80,6 @@ const LABELS: Record<ScheduleLanguage, PrintLabels> = {
     householder: 'House Holder:',
     conductor: 'Conductor:',
     reader: 'Reader:',
-    publicTalk: 'PUBLIC TALK',
-    watchtowerStudy: 'WATCHTOWER STUDY',
     noMeeting: 'No meeting this week',
     coVisit: 'Circuit overseer visit',
     memorial: 'Memorial week',
@@ -96,7 +90,6 @@ const LABELS: Record<ScheduleLanguage, PrintLabels> = {
   },
   ilo: {
     midweekTitle: 'Eskediul ti Gimong iti Tengnga ti Lawas',
-    weekendTitle: 'Eskediul ti Gimong iti Ngudo ti Lawas',
     cleaner: 'Cleaner of the week',
     chairman: 'Tserman:',
     prayer: 'Kararag:',
@@ -115,8 +108,6 @@ const LABELS: Record<ScheduleLanguage, PrintLabels> = {
     householder: 'House Holder:',
     conductor: 'Konduktor:',
     reader: 'Parabasa:',
-    publicTalk: 'PALAWAG PUBLIKO',
-    watchtowerStudy: 'PANAGADAL ITI PAGWANAWANAN',
     noMeeting: 'Awan ti gimong iti daytoy a lawas',
     coVisit: 'Panagsarungkar ti manangaywan iti sirkito',
     memorial: 'Memorial',
@@ -268,65 +259,24 @@ function midweekBlock(week: MeetingWeek, labels: PrintLabels): string {
   </div>`;
 }
 
-function weekendBlock(week: MeetingWeek, labels: PrintLabels): string {
-  const heading = weekRange(week.week_of, labels);
-
-  if (week.week_type === 'no_meeting') {
-    return `<div class="week">
-      <div class="week-head">${heading}</div>
-      <p class="special">${labels.noMeeting}${week.notes ? ` — ${esc(week.notes)}` : ''}</p>
-    </div>`;
-  }
-
-  const typeNote =
-    week.week_type === 'co_visit' ? `<p class="special">${labels.coVisit}</p>` : '';
-
-  const speaker = [escName(week.public_talk_speaker_name), esc(week.speaker_congregation)]
-    .filter(Boolean)
-    .join(', ');
-
-  return `<div class="week">
-    <div class="week-head">${heading}</div>
-    ${typeNote}
-    <table class="program">
-      <tr><td class="left">&#160;</td><td class="right split"><span class="rlabel">${labels.chairman}</span><span class="rvalue">${escName(week.weekend_chairman_name) || '&#160;'}</span></td></tr>
-      <tr><td colspan="2" class="section" style="background:${SECTION_COLORS.treasures}">${labels.publicTalk}${week.weekend_song_opening ? ` &#160;•&#160; ♫ ${labels.song} ${week.weekend_song_opening}` : ''}</td></tr>
-      <tr><td class="left">${week.public_talk_theme ? `<strong>${esc(week.public_talk_theme)}</strong>` : '&#160;'}</td><td class="right">${speaker || '&#160;'}</td></tr>
-      <tr><td colspan="2" class="section" style="background:${SECTION_COLORS.living}">${labels.watchtowerStudy}${week.weekend_song_middle ? ` &#160;•&#160; ♫ ${labels.song} ${week.weekend_song_middle}` : ''}</td></tr>
-      <tr><td class="left">${week.wt_article_title ? `<strong>${esc(week.wt_article_title)}</strong>` : '&#160;'}</td><td class="right">${labeledNames([
-        [labels.conductor, week.wt_conductor_name],
-        [labels.reader, week.wt_reader_name],
-      ])}</td></tr>
-      <tr>
-        <td class="left">${week.weekend_song_closing ? `♫ ${labels.song} ${week.weekend_song_closing} ${labels.andPrayer}` : '&#160;'}</td>
-        <td class="right">${labeledNames([
-          [labels.prayer, week.weekend_opening_prayer_name],
-          [labels.prayer, week.weekend_closing_prayer_name],
-        ])}</td>
-      </tr>
-    </table>
-    ${week.notes ? `<p class="notes">${esc(week.notes)}</p>` : ''}
-  </div>`;
-}
-
 /**
- * Board schedule matching the congregation's manual sheet: centered header,
- * dark week band with date range and Bible reading, colored section bands,
- * continuous part numbering, and per-role assignment labels.
+ * Midweek board schedule matching the congregation's manual sheet: centered
+ * header, dark week band with date range and Bible reading, colored section
+ * bands, continuous part numbering, and per-role assignment labels.
+ * (The weekend schedule uses the range table in weekend-range-print.ts.)
  */
 export function buildMonthScheduleDocument(
   weeks: MeetingWeek[],
   congregationName: string,
   monthLabel: string,
-  mode: ScheduleDocumentMode,
   language: ScheduleLanguage = 'en'
 ): string {
   const labels = LABELS[language] ?? LABELS.en;
-  const title = mode === 'midweek' ? labels.midweekTitle : labels.weekendTitle;
+  const title = labels.midweekTitle;
 
   const weekBlocks = [...weeks]
     .sort((a, b) => a.week_of.localeCompare(b.week_of))
-    .map((week) => (mode === 'midweek' ? midweekBlock(week, labels) : weekendBlock(week, labels)));
+    .map((week) => midweekBlock(week, labels));
 
   // Two weeks per printed page, like the congregation's manual sheet.
   const pages: string[] = [];

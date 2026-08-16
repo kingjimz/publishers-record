@@ -83,9 +83,22 @@ export const routes: Routes = [
               ),
             data: { animation: 'MeetingMidweekPage', tool: 'meeting-scheduler', mode: 'midweek' },
           },
-          // Weekend scheduler is parked for now; re-add a 'weekend' route with
-          // data.mode = 'weekend' to bring it back (component supports both modes).
-          { path: 'weekend', pathMatch: 'full', redirectTo: 'midweek' },
+          {
+            path: 'weekend',
+            loadComponent: () =>
+              import('./components/meeting-scheduler/meeting-schedule.component').then(
+                (m) => m.MeetingScheduleComponent
+              ),
+            data: { animation: 'MeetingWeekendPage', tool: 'meeting-scheduler', mode: 'weekend' },
+          },
+          {
+            path: 'outlines',
+            loadComponent: () =>
+              import('./components/meeting-scheduler/talk-outline-manager.component').then(
+                (m) => m.TalkOutlineManagerComponent
+              ),
+            data: { animation: 'MeetingOutlinesPage', tool: 'meeting-scheduler' },
+          },
           { path: 'schedule', pathMatch: 'full', redirectTo: 'midweek' },
           { path: '', pathMatch: 'full', redirectTo: 'midweek' },
         ],

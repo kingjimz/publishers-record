@@ -9,9 +9,12 @@ import {
   MeetingWeek,
   MeetingWeekType,
   PublisherTypeHistory,
+  WeekendEvent,
 } from '../../services/meeting-schedule.service';
 import { PublisherRecord } from '../../services/supabase.service';
+import { TalkOutline } from '../../services/talk-outline.service';
 import { AssigneePickerComponent } from './assignee-picker.component';
+import { TalkOutlinePickerComponent, TalkThemePick } from './talk-outline-picker.component';
 import {
   Eligibility,
   PART_TYPE_LABELS,
@@ -24,7 +27,7 @@ import {
 @Component({
   selector: 'app-meeting-week-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, AssigneePickerComponent],
+  imports: [CommonModule, FormsModule, AssigneePickerComponent, TalkOutlinePickerComponent],
   templateUrl: './meeting-week-editor.component.html',
 })
 export class MeetingWeekEditorComponent {
@@ -34,6 +37,10 @@ export class MeetingWeekEditorComponent {
   @Input() publishers: PublisherRecord[] = [];
   @Input() history: Map<string, string> = new Map();
   @Input() historyDetail: Map<string, PublisherTypeHistory> = new Map();
+  /** S-99 outline library feeding the weekend Tema picker. */
+  @Input() outlines: TalkOutline[] = [];
+  /** talk number -> ISO date last given, for the picker's badge. */
+  @Input() outlineUsage: Map<number, string> = new Map();
   @Input() saving = false;
   @Output() save = new EventEmitter<void>();
   @Output() cancelEdit = new EventEmitter<void>();
@@ -50,12 +57,36 @@ export class MeetingWeekEditorComponent {
     { key: 'living', label: 'Living as Christians', icon: 'bi-heart' },
   ];
 
+  /** Weekend event choices; C.O. visit stays on week_type like the midweek tab. */
+  protected readonly weekendEvents: { value: WeekendEvent | null; label: string }[] = [
+    { value: null, label: 'Regular public talk' },
+    { value: 'assembly', label: 'Circuit assembly week' },
+    { value: 'convention', label: 'Regional convention week' },
+    { value: 'special_talk', label: 'Special talk' },
+    { value: 'symposium', label: 'Symposium (two speakers)' },
+  ];
+
   protected get hasMeeting(): boolean {
     return this.week.week_type !== 'no_meeting';
   }
 
   protected get isMemorial(): boolean {
     return this.week.week_type === 'memorial';
+  }
+
+  /** Assembly/convention weekends have no local meeting to assign. */
+  protected get isWeekendEventWeek(): boolean {
+    return this.week.weekend_event === 'assembly' || this.week.weekend_event === 'convention';
+  }
+
+  protected onWeekendEventChange(value: WeekendEvent | null): void {
+    this.week.weekend_event = value;
+    if (value !== 'symposium') this.week.public_talk_speaker2_name = null;
+  }
+
+  protected onThemePicked(pick: TalkThemePick): void {
+    this.week.public_talk_number = pick.number;
+    this.week.public_talk_theme = pick.theme;
   }
 
   protected partsFor(section: MeetingSection): MeetingPart[] {
@@ -80,6 +111,7 @@ export class MeetingWeekEditorComponent {
     add(this.week.closing_prayer_name, 'Closing Prayer');
     add(this.week.weekend_chairman_name, 'Chairman (Weekend)');
     add(this.week.public_talk_speaker_name, 'Public Talk');
+    add(this.week.public_talk_speaker2_name, 'Public Talk (2nd Speaker)');
     add(this.week.wt_conductor_name, 'WT Conductor');
     add(this.week.wt_reader_name, 'WT Reader');
     add(this.week.weekend_opening_prayer_name, 'Opening Prayer (Weekend)');
