@@ -113,11 +113,11 @@ describe('assistantWarning', () => {
 });
 
 describe('PART_TYPE_RULES', () => {
-  it('only the Bible reading and student demonstrations take an assistant', () => {
+  it('only the Bible reading, student demonstrations, and student talks take an assistant', () => {
     const withAssistant = Object.entries(PART_TYPE_RULES)
       .filter(([, rule]) => rule.assistant !== 'none')
       .map(([type]) => type);
-    expect(withAssistant).toEqual(['bible_reading', 'student_demo']);
+    expect(withAssistant).toEqual(['bible_reading', 'student_demo', 'student_talk']);
   });
 
   it('ministry discussions go to elders/MS with no assistant and no slip', () => {

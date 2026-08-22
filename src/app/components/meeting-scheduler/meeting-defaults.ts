@@ -26,7 +26,7 @@ export const PART_TYPE_RULES: Record<MeetingPartType, PartRule> = {
   spiritual_gems: { eligibility: 'elder_ms', assistant: 'none' },
   bible_reading: { eligibility: 'male', assistant: 'same_gender' },
   student_demo: { eligibility: 'any', assistant: 'same_gender' },
-  student_talk: { eligibility: 'male', assistant: 'none' },
+  student_talk: { eligibility: 'male', assistant: 'same_gender' },
   ministry_discussion: { eligibility: 'elder_ms', assistant: 'none' },
   living_talk: { eligibility: 'elder_ms', assistant: 'none' },
   cbs: { eligibility: 'elder', assistant: 'none' },

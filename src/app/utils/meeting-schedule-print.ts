@@ -122,7 +122,7 @@ const LABELS: Record<ScheduleLanguage, PrintLabels> = {
     memorial: 'Memorial',
     months: [
       'ENERO', 'PEBRERO', 'MARSO', 'ABRIL', 'MAYO', 'HUNIO',
-      'HULIO', 'AGOSTO', 'SETIEMBRE', 'OKTUBRE', 'NOBIEMBRE', 'DISIEMBRE',
+      'HULIO', 'AGOSTO', 'SEPTIEMBRE', 'OKTUBRE', 'NOBIEMBRE', 'DISIEMBRE',
     ],
   },
 };
@@ -368,7 +368,9 @@ export function buildMonthScheduleDocument(
   }
   .cong { text-align: center; font-weight: bold; font-size: 10pt; margin: 0; text-transform: uppercase; letter-spacing: 0.02em; }
   .doc-title { text-align: center; font-weight: bold; font-size: 13pt; margin: 1px 0 8px 0; }
-  .sheet-page { page-break-after: always; }
+  /* The PNG exporter renders each page inside a fixed-height flex column, so
+     the sheet fills the page and flexible blocks can absorb leftover space. */
+  .sheet-page { page-break-after: always; flex: 1 0 auto; display: flex; flex-direction: column; }
   .sheet-page:last-child { page-break-after: auto; }
   .week { page-break-inside: avoid; }
   .week + .week { margin-top: 30px; }
@@ -385,7 +387,9 @@ export function buildMonthScheduleDocument(
   .special { border: 1px solid #bfbfbf; border-top: none; padding: 5px 8px; margin: 0; font-style: italic; }
   .notes { border: 1px solid #bfbfbf; border-top: none; padding: 4px 8px; margin: 0; font-size: 8.5pt; color: #333; }
   .week-ph { display: flex; flex-direction: column; }
-  .week-ph-mid { min-height: 460px; }
+  /* Grows to exactly the space a normal week would use, never past the page,
+     so the paired week keeps its position and no page needs shrinking. */
+  .week-ph-mid { flex: 1 0 auto; }
   .week-ph-wknd { min-height: 230px; }
   .nm-panel { flex: 1; border: 1px solid #bfbfbf; border-top: none; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px; padding: 24px 32px; }
   .nm-headline { margin: 0; font-weight: bold; font-size: 15pt; text-transform: uppercase; letter-spacing: 0.04em; color: #c00000; }
