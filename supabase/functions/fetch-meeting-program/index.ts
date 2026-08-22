@@ -36,6 +36,8 @@ interface LanguageConfig {
   studentTalkKeywords: string[];
   /** Keywords that veto the student-talk match (e.g. "conversation"). */
   studentTalkExclude: string[];
+  /** Marker word right after the minutes for elder/MS audience discussions. */
+  ministryDiscussionKeywords: string[];
   /** Living-section title keywords for the Congregation Bible Study. */
   cbsKeywords: string[];
   /** Living-section title keywords for a circuit overseer service talk. */
@@ -50,6 +52,7 @@ const LANGUAGES: Record<string, LanguageConfig> = {
     songWord: "Song",
     studentTalkKeywords: ["talk"],
     studentTalkExclude: ["conversation"],
+    ministryDiscussionKeywords: ["discussion"],
     cbsKeywords: ["congregation bible study"],
     serviceTalkKeywords: ["service talk"],
   },
@@ -60,6 +63,7 @@ const LANGUAGES: Record<string, LanguageConfig> = {
     songWord: "Kanta",
     studentTalkKeywords: ["palawag"],
     studentTalkExclude: [],
+    ministryDiscussionKeywords: ["pagsasaritaan"],
     cbsKeywords: ["panagadal ti kongregasion iti biblia"],
     serviceTalkKeywords: ["circuit overseer", "para iti serbisio"],
   },
@@ -71,6 +75,7 @@ type PartType =
   | "bible_reading"
   | "student_demo"
   | "student_talk"
+  | "ministry_discussion"
   | "living_talk"
   | "cbs"
   | "service_talk"
@@ -97,6 +102,24 @@ function extractSetting(afterMinutes: string): string | null {
   const phrase = match[1].replace(/\s+/g, " ").trim();
   if (phrase !== phrase.toUpperCase()) return null;
   return phrase;
+}
+
+/**
+ * Reads the text after "(N min.)". Elder/MS audience discussions start with a
+ * marker word before the setting, e.g. "Discussion. HOUSE TO HOUSE. ..." /
+ * "Pagsasaritaan. PANAGBALAYBALAY. ...", which extractSetting alone would miss.
+ */
+function parseDescriptor(
+  afterMinutes: string,
+  lang: LanguageConfig
+): { isDiscussion: boolean; setting: string | null } {
+  let text = afterMinutes.replace(/^\s*\)\s*/, "").trim();
+  const lower = text.toLowerCase();
+  const marker = lang.ministryDiscussionKeywords.find((k) => lower.startsWith(k));
+  if (marker) {
+    text = text.slice(marker.length).replace(/^\.\s*/, "");
+  }
+  return { isDiscussion: !!marker, setting: extractSetting(text) };
 }
 
 Deno.serve(async (req) => {
@@ -288,12 +311,13 @@ function parseWorkbook(html: string, lang: LanguageConfig) {
       let title = part[2].trim();
       let minutes: number | null = null;
       let setting: string | null = null;
+      let isDiscussion = false;
 
       const inline = title.match(inlineMinutes);
       if (inline) {
         minutes = Number(inline[1]);
         const afterInline = title.slice((inline.index ?? 0) + inline[0].length).replace(/^\)?/, "");
-        setting = extractSetting(afterInline.replace(/^\s*\)\s*/, ""));
+        ({ isDiscussion, setting } = parseDescriptor(afterInline, lang));
         title = title.replace(inlineMinutes, "").replace(/\s+/g, " ").trim();
       } else {
         for (let j = i + 1; j <= i + 2 && j < lines.length; j++) {
@@ -302,7 +326,7 @@ function parseWorkbook(html: string, lang: LanguageConfig) {
             minutes = Number(ahead[1]);
             const closeParen = lines[j].indexOf(")");
             if (closeParen !== -1) {
-              setting = extractSetting(lines[j].slice(closeParen + 1));
+              ({ isDiscussion, setting } = parseDescriptor(lines[j].slice(closeParen + 1), lang));
             }
             break;
           }
@@ -313,7 +337,7 @@ function parseWorkbook(html: string, lang: LanguageConfig) {
       target.push({
         title,
         minutes: Number.isFinite(minutes ?? NaN) ? minutes : null,
-        partType: guessPartType(segment.section, title, target.length, lang),
+        partType: guessPartType(segment.section, title, target.length, lang, isDiscussion),
         setting,
       });
     }
@@ -342,7 +366,8 @@ function guessPartType(
   section: Section,
   title: string,
   indexInSection: number,
-  lang: LanguageConfig
+  lang: LanguageConfig,
+  isDiscussion = false
 ): PartType {
   const t = title.toLowerCase();
 
@@ -356,6 +381,7 @@ function guessPartType(
   }
 
   if (section === "ministry") {
+    if (isDiscussion) return "ministry_discussion";
     const isTalk =
       lang.studentTalkKeywords.some((k) => t.includes(k)) &&
       !lang.studentTalkExclude.some((k) => t.includes(k));

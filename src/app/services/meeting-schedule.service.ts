@@ -12,6 +12,7 @@ export type MeetingPartType =
   | 'bible_reading'
   | 'student_demo'
   | 'student_talk'
+  | 'ministry_discussion'
   | 'living_talk'
   | 'cbs'
   | 'cbs_reader'

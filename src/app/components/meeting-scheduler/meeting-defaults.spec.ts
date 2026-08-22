@@ -7,6 +7,7 @@ import {
   partnerRecencyWarning,
   recencyWarning,
   PART_TYPE_RULES,
+  STUDENT_PART_TYPES,
 } from './meeting-defaults';
 import {
   buildAssignmentHistory,
@@ -112,11 +113,19 @@ describe('assistantWarning', () => {
 });
 
 describe('PART_TYPE_RULES', () => {
-  it('only student demonstrations take an assistant', () => {
+  it('only the Bible reading and student demonstrations take an assistant', () => {
     const withAssistant = Object.entries(PART_TYPE_RULES)
       .filter(([, rule]) => rule.assistant !== 'none')
       .map(([type]) => type);
-    expect(withAssistant).toEqual(['student_demo']);
+    expect(withAssistant).toEqual(['bible_reading', 'student_demo']);
+  });
+
+  it('ministry discussions go to elders/MS with no assistant and no slip', () => {
+    expect(PART_TYPE_RULES.ministry_discussion).toEqual({
+      eligibility: 'elder_ms',
+      assistant: 'none',
+    });
+    expect(STUDENT_PART_TYPES).not.toContain('ministry_discussion');
   });
 });
 
