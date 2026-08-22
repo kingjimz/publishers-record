@@ -80,13 +80,49 @@ describe('buildMonthScheduleDocument', () => {
     expect(html).not.toContain('John Chairman');
   });
 
-  it('renders no-meeting weeks as a single line', () => {
+  it('renders no-meeting weeks as a full-height placeholder with the reason as headline', () => {
+    const week = sampleWeek();
+    week.week_type = 'no_meeting';
+    week.parts = [];
+    week.no_meeting_reason = 'Kombension ti Rehion';
+    const html = buildMonthScheduleDocument([week], 'Test Congregation', 'August 2026', 'midweek');
+    expect(html).toContain('class="week week-ph week-ph-mid"');
+    expect(html).toContain('KOMBENSION TI REHION');
+    expect(html).toContain('class="nm-sub">No meeting this week');
+    expect(html).not.toContain('PUBLIC TALK');
+    expect(html).not.toContain('Treasures Talk');
+  });
+
+  it('falls back to the no-meeting label as headline when no reason is set', () => {
     const week = sampleWeek();
     week.week_type = 'no_meeting';
     week.parts = [];
     const html = buildMonthScheduleDocument([week], 'Test Congregation', 'August 2026', 'midweek');
-    expect(html).toContain('No meeting this week');
-    expect(html).not.toContain('PUBLIC TALK');
+    expect(html).toContain('class="nm-headline">No meeting this week');
+    expect(html).not.toContain('class="nm-sub"');
+  });
+
+  it('renders the no-meeting placeholder in Iloko and at weekend size', () => {
+    const week = sampleWeek();
+    week.week_type = 'no_meeting';
+    week.parts = [];
+    week.no_meeting_reason = 'Asamblea ti Sirkito';
+    week.notes = 'Baguio Assembly Hall';
+    const html = buildMonthScheduleDocument([week], 'Test Congregation', 'August 2026', 'weekend', 'ilo');
+    expect(html).toContain('class="week week-ph week-ph-wknd"');
+    expect(html).toContain('ASAMBLEA TI SIRKITO');
+    expect(html).toContain('Awan ti gimong iti daytoy a lawas');
+    expect(html).toContain('class="nm-notes">Baguio Assembly Hall');
+  });
+
+  it('escapes HTML in the no-meeting reason', () => {
+    const week = sampleWeek();
+    week.week_type = 'no_meeting';
+    week.parts = [];
+    week.no_meeting_reason = '<b>x</b>';
+    const html = buildMonthScheduleDocument([week], 'Test Congregation', 'August 2026', 'midweek');
+    expect(html).not.toContain('<b>x</b>');
+    expect(html).toContain('&lt;B&gt;X&lt;/B&gt;');
   });
 
   it('prints publisher names in reading order, not the stored "Lastname, Firstname"', () => {

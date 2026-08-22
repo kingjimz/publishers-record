@@ -191,16 +191,32 @@ function partTitleCell(part: MeetingPart, num: number): string {
   return `<strong>${num}. ${esc(part.title)}</strong>${minutes}${setting}`;
 }
 
+/**
+ * Full-height placeholder for a week with no meeting, so the paired week on
+ * the page keeps its normal position instead of riding to the top.
+ */
+function noMeetingBlock(heading: string, week: MeetingWeek, labels: PrintLabels, mode: 'mid' | 'wknd'): string {
+  const reason = week.no_meeting_reason?.trim();
+  const headline = reason ? esc(reason.toUpperCase()) : labels.noMeeting;
+  const subtitle = reason ? `<p class="nm-sub">${labels.noMeeting}</p>` : '';
+  const notes = week.notes ? `<p class="nm-notes">${esc(week.notes)}</p>` : '';
+  return `<div class="week week-ph week-ph-${mode}">
+    <div class="week-head">${heading}</div>
+    <div class="nm-panel">
+      <p class="nm-headline">${headline}</p>
+      ${subtitle}
+      ${notes}
+    </div>
+  </div>`;
+}
+
 function midweekBlock(week: MeetingWeek, labels: PrintLabels): string {
   const heading = `${weekRange(week.week_of, labels)}${
     week.weekly_bible_reading ? ` | ${esc(week.weekly_bible_reading.toUpperCase())}` : ''
   }`;
 
   if (week.week_type === 'no_meeting') {
-    return `<div class="week">
-      <div class="week-head">${heading}</div>
-      <p class="special">${labels.noMeeting}${week.notes ? ` — ${esc(week.notes)}` : ''}</p>
-    </div>`;
+    return noMeetingBlock(heading, week, labels, 'mid');
   }
 
   const typeNote =
@@ -272,10 +288,7 @@ function weekendBlock(week: MeetingWeek, labels: PrintLabels): string {
   const heading = weekRange(week.week_of, labels);
 
   if (week.week_type === 'no_meeting') {
-    return `<div class="week">
-      <div class="week-head">${heading}</div>
-      <p class="special">${labels.noMeeting}${week.notes ? ` — ${esc(week.notes)}` : ''}</p>
-    </div>`;
+    return noMeetingBlock(heading, week, labels, 'wknd');
   }
 
   const typeNote =
@@ -371,6 +384,13 @@ export function buildMonthScheduleDocument(
   .alabel { font-weight: bold; }
   .special { border: 1px solid #bfbfbf; border-top: none; padding: 5px 8px; margin: 0; font-style: italic; }
   .notes { border: 1px solid #bfbfbf; border-top: none; padding: 4px 8px; margin: 0; font-size: 8.5pt; color: #333; }
+  .week-ph { display: flex; flex-direction: column; }
+  .week-ph-mid { min-height: 460px; }
+  .week-ph-wknd { min-height: 230px; }
+  .nm-panel { flex: 1; border: 1px solid #bfbfbf; border-top: none; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px; padding: 24px 32px; }
+  .nm-headline { margin: 0; font-weight: bold; font-size: 15pt; text-transform: uppercase; letter-spacing: 0.04em; color: #c00000; }
+  .nm-sub { margin: 0; font-style: italic; font-size: 11pt; color: #333; }
+  .nm-notes { margin: 6px 0 0 0; font-size: 9pt; color: #555; }
 </style>
 </head>
 <body>

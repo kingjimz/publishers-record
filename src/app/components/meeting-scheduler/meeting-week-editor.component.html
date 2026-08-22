@@ -321,9 +321,31 @@
     }
 
   } @else {
-    <div class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 p-4 flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
-      <i class="bi bi-calendar-x text-lg text-slate-400 dark:text-slate-500"></i>
-      <span>No meeting this week (assembly or convention). Only the notes above will appear on the printed schedule.</span>
+    <div class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 p-4 space-y-3">
+      <div class="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
+        <i class="bi bi-calendar-x text-lg text-slate-400 dark:text-slate-500"></i>
+        <span>No meeting this week (assembly or convention). The reason below and the notes above will appear on the printed schedule.</span>
+      </div>
+      <label class="flex flex-col gap-1">
+        <span class="ms-field-label">Reason</span>
+        <input
+          type="text"
+          [(ngModel)]="week.no_meeting_reason"
+          name="noMeetingReason"
+          placeholder="e.g. Regional Convention Week"
+          class="ms-field" />
+      </label>
+      <div class="flex flex-wrap gap-1.5">
+        @for (reason of noMeetingReasons; track reason) {
+          <button type="button"
+            (click)="week.no_meeting_reason = reason"
+            class="ms-chip"
+            [class.ms-chip-primary]="week.no_meeting_reason === reason"
+            [class.ms-chip-neutral]="week.no_meeting_reason !== reason">
+            {{ reason }}
+          </button>
+        }
+      </div>
     </div>
   }
 

@@ -132,6 +132,7 @@ export function createEmptyWeek(weekOfIso: string, weekType: MeetingWeekType = '
     week_of: weekOfIso,
     week_type: weekType,
     notes: null,
+    no_meeting_reason: null,
     cleaning_group: null,
     midweek_date: weekOfIso,
     weekly_bible_reading: null,

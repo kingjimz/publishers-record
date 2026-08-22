@@ -29,6 +29,17 @@
           Print Slips
         </button>
       }
+      <button type="button" (click)="onOpenPreview()"
+        [disabled]="loading || generating"
+        class="ms-btn ms-btn-secondary">
+        @if (previewLoading) {
+          <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+          Rendering...
+        } @else {
+          <i class="bi bi-eye"></i>
+          Preview
+        }
+      </button>
       <button type="button" (click)="onRequestGenerate('png')"
         [disabled]="loading || generating"
         class="ms-btn ms-btn-secondary">
@@ -276,9 +287,14 @@
             <!-- Read-only summary -->
             <div class="pl-5 pr-4 py-4 text-sm">
               @if (week.week_type === 'no_meeting') {
-                <p class="text-slate-500 dark:text-slate-400">
-                  No meeting this week{{ week.notes ? ': ' + week.notes : ' (assembly or convention).' }}
-                </p>
+                <div class="flex flex-col gap-0.5">
+                  <span class="font-medium text-slate-700 dark:text-slate-200">
+                    {{ week.no_meeting_reason || 'Assembly or convention' }}
+                  </span>
+                  <span class="text-slate-500 dark:text-slate-400">
+                    No meeting this week{{ week.notes ? ' — ' + week.notes : '.' }}
+                  </span>
+                </div>
               } @else if (mode === 'midweek') {
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-3">
                   <div class="flex flex-col gap-1">
@@ -596,6 +612,74 @@
               Generating...
             } @else {
               Continue
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Schedule preview -->
+  @if (previewPages) {
+    <div class="ms-modal-backdrop" (click)="onClosePreview()">
+      <div class="ms-modal-panel max-w-6xl max-h-[95vh] flex flex-col" (click)="$event.stopPropagation()">
+        <div class="flex items-center gap-3">
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400">
+            <i class="bi bi-eye"></i>
+          </div>
+          <div class="min-w-0 flex-1">
+            <h3 class="text-base font-semibold text-slate-900 dark:text-slate-100">Schedule Preview</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">
+              {{ monthLabel }} &middot; {{ previewPages.length }} page{{ previewPages.length === 1 ? '' : 's' }} &middot; matches the PNG and PDF output exactly
+            </p>
+          </div>
+          <button type="button" (click)="onClosePreview()" [disabled]="generating"
+            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-700 transition-colors"
+            aria-label="Close preview">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+
+        <div class="mt-4 flex-1 min-h-0 overflow-y-auto space-y-4 rounded-xl bg-slate-100 dark:bg-slate-900/60 p-4">
+          @for (page of previewPages; track $index) {
+            <img [src]="page" alt="Schedule page {{ $index + 1 }}"
+              class="w-full rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm bg-white" />
+          }
+        </div>
+
+        <div class="mt-5 flex flex-wrap items-center justify-end gap-2">
+          <button type="button" (click)="onClosePreview()" [disabled]="generating"
+            class="ms-btn ms-btn-secondary">
+            Close
+          </button>
+          <button type="button" (click)="onExportFromPreview('png')" [disabled]="generating"
+            class="ms-btn ms-btn-secondary disabled:opacity-70">
+            @if (downloadingPng) {
+              <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+              Saving...
+            } @else {
+              <i class="bi bi-file-earmark-image"></i>
+              Save as PNG
+            }
+          </button>
+          <button type="button" (click)="onExportFromPreview('pdf')" [disabled]="generating"
+            class="ms-btn ms-btn-secondary disabled:opacity-70">
+            @if (downloadingPdf) {
+              <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+              Saving...
+            } @else {
+              <i class="bi bi-file-earmark-pdf"></i>
+              Save as PDF
+            }
+          </button>
+          <button type="button" (click)="onExportFromPreview('print')" [disabled]="generating"
+            class="ms-btn ms-btn-primary disabled:opacity-70">
+            @if (printingMonth) {
+              <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+              Preparing...
+            } @else {
+              <i class="bi bi-printer"></i>
+              Print
             }
           </button>
         </div>

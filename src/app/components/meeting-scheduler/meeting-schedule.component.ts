@@ -700,7 +700,7 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
   // ---------- Generation confirmation ----------
 
   protected get generating(): boolean {
-    return this.printingMonth || this.downloadingPng || this.downloadingPdf;
+    return this.printingMonth || this.downloadingPng || this.downloadingPdf || this.previewLoading;
   }
 
   /** Numbers shown in the generate confirmation modal. */
@@ -771,6 +771,55 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
       this.generateRequest = null;
       this.cdr.detectChanges();
     }
+  }
+
+  // ---------- Preview ----------
+
+  protected previewPages: string[] | null = null;
+  protected previewLoading = false;
+
+  protected async onOpenPreview(): Promise<void> {
+    if (this.generating) return;
+    const weeks = this.monthWeeks;
+    if (weeks.length === 0) {
+      this.toast.showError('No saved weeks in this month to preview yet.');
+      return;
+    }
+
+    this.previewLoading = true;
+    this.cdr.detectChanges();
+    try {
+      const html = buildMonthScheduleDocument(
+        weeks,
+        CONGREGATION_NAME,
+        this.monthLabel,
+        this.mode,
+        this.importLanguage
+      );
+      this.previewPages = await renderHtmlToPngDataUrls(html);
+    } catch (err) {
+      this.toast.showError(
+        err instanceof Error ? err.message : 'Could not prepare the preview.'
+      );
+    } finally {
+      this.previewLoading = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  protected onClosePreview(): void {
+    if (this.generating) return;
+    this.previewPages = null;
+    this.cdr.detectChanges();
+  }
+
+  protected async onExportFromPreview(kind: 'print' | 'png' | 'pdf'): Promise<void> {
+    if (this.generating) return;
+    if (kind === 'print') await this.onPrintMonth();
+    else if (kind === 'png') await this.onDownloadPng();
+    else await this.onDownloadPdf();
+    this.previewPages = null;
+    this.cdr.detectChanges();
   }
 
   // ---------- Printing ----------

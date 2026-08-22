@@ -135,7 +135,14 @@ export class MeetingWeekEditorComponent {
   private applyWeekType(newType: MeetingWeekType): void {
     this.week.week_type = newType;
     this.week.parts = buildDefaultWeekParts(newType);
+    if (newType !== 'no_meeting') this.week.no_meeting_reason = null;
   }
+
+  /** Common reasons offered as one-tap picks when the week has no meeting. */
+  protected readonly noMeetingReasons: string[] = [
+    'Regional Convention Week',
+    'Circuit Assembly Week',
+  ];
 
   protected addPart(section: MeetingSection): void {
     const sectionParts = this.partsFor(section);
