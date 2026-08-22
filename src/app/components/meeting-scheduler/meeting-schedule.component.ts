@@ -29,6 +29,7 @@ import { addDaysIso, buildDefaultWeekParts, createEmptyWeek } from './meeting-de
 
 export type SchedulerMode = 'midweek' | 'weekend';
 import { MeetingWeekEditorComponent } from './meeting-week-editor.component';
+import { MeetingWeekWorkbookComponent } from './meeting-week-workbook.component';
 
 const CONGREGATION_NAME = 'Bolaoen Congregation';
 const IMPORT_LANGUAGE_STORAGE_KEY = 'meeting-import-language';
@@ -70,7 +71,7 @@ const IMPORT_STEP_TEMPLATE: ReadonlyArray<Pick<ImportProgressStep, 'label' | 'de
 @Component({
   selector: 'app-meeting-schedule',
   standalone: true,
-  imports: [CommonModule, FormsModule, MeetingWeekEditorComponent],
+  imports: [CommonModule, FormsModule, MeetingWeekEditorComponent, MeetingWeekWorkbookComponent],
   templateUrl: './meeting-schedule.component.html',
   styleUrl: './meeting-schedule.component.css',
 })

@@ -4,13 +4,16 @@
     <!-- Week band: date range | weekly Bible reading -->
     <div class="wb-head">
       <span>{{ headingRange }}</span>
-      <span class="wb-head-sep">|</span>
-      <input
-        type="text"
-        class="wb-inline wb-head-reading"
-        [(ngModel)]="week.weekly_bible_reading"
-        name="wbWeeklyBibleReading"
-        placeholder="Bible reading" />
+      @if (!readonly || week.weekly_bible_reading) {
+        <span class="wb-head-sep">|</span>
+        <input
+          type="text"
+          class="wb-inline wb-head-reading"
+          [(ngModel)]="week.weekly_bible_reading"
+          name="wbWeeklyBibleReading"
+          [readonly]="readonly"
+          placeholder="Bible reading" />
+      }
     </div>
 
     @if (week.week_type === 'no_meeting') {
@@ -22,24 +25,30 @@
           class="wb-inline wb-nm-headline"
           [(ngModel)]="week.no_meeting_reason"
           name="wbNoMeetingReason"
+          [readonly]="readonly"
           [placeholder]="labels.noMeeting" />
         <p class="wb-nm-sub">{{ labels.noMeeting }}</p>
-        <div class="wb-nm-chips">
-          @for (reason of noMeetingReasons; track reason) {
-            <button type="button"
-              class="wb-nm-chip"
-              [class.wb-nm-chip-active]="week.no_meeting_reason === reason"
-              (click)="week.no_meeting_reason = reason">
-              {{ reason }}
-            </button>
-          }
-        </div>
-        <input
-          type="text"
-          class="wb-inline wb-nm-notes"
-          [(ngModel)]="week.notes"
-          name="wbNoMeetingNotes"
-          placeholder="Notes (e.g. venue)" />
+        @if (!readonly) {
+          <div class="wb-nm-chips">
+            @for (reason of noMeetingReasons; track reason) {
+              <button type="button"
+                class="wb-nm-chip"
+                [class.wb-nm-chip-active]="week.no_meeting_reason === reason"
+                (click)="week.no_meeting_reason = reason">
+                {{ reason }}
+              </button>
+            }
+          </div>
+        }
+        @if (!readonly || week.notes) {
+          <input
+            type="text"
+            class="wb-inline wb-nm-notes"
+            [(ngModel)]="week.notes"
+            name="wbNoMeetingNotes"
+            [readonly]="readonly"
+            placeholder="Notes (e.g. venue)" />
+        }
       </div>
 
     } @else {
@@ -55,7 +64,7 @@
         <tr>
           <td class="wb-left">&nbsp;</td>
           <td class="wb-right wb-split">
-            <span class="wb-rlabel">{{ labels.cleaner }}</span><span class="wb-rvalue"><select
+            <span class="wb-rlabel">{{ labels.cleaner }}</span><span class="wb-rvalue">@if (readonly) {<strong>{{ week.cleaning_group ? week.cleaning_group.toUpperCase() : ' ' }}</strong>} @else {<select
                 class="wb-inline wb-cleaner"
                 [(ngModel)]="week.cleaning_group"
                 name="wbCleaningGroup">
@@ -66,7 +75,7 @@
                 @for (group of cleaningGroups; track group) {
                   <option [ngValue]="group">{{ group }}</option>
                 }
-              </select></span>
+              </select>}</span>
           </td>
         </tr>
 
@@ -75,7 +84,7 @@
           <td class="wb-left">&nbsp;</td>
           <td class="wb-right wb-split">
             <span class="wb-rlabel">{{ labels.chairman }}</span><span class="wb-rvalue"><app-assignee-picker
-                variant="inline" placeholder="Assign"
+                variant="inline" [readonly]="readonly" placeholder="Assign"
                 [publishers]="publishers" [history]="history" [historyDetail]="historyDetail"
                 [historyKey]="'chairman_name'" [weekOf]="week.week_of"
                 [eligibility]="roleEligibility('chairman_name')"
@@ -87,14 +96,18 @@
         <!-- Opening song and prayer -->
         <tr>
           <td class="wb-left">
-            <span class="wb-song-line">♫ {{ labels.song }}
-              <input type="number" min="1" max="200" class="wb-inline wb-song"
-                [(ngModel)]="week.song_opening" name="wbSongOpening" placeholder="#" />
-            </span>
+            @if (!readonly || week.song_opening) {
+              <span class="wb-song-line">♫ {{ labels.song }}
+                <input type="number" min="1" max="200" class="wb-inline wb-song"
+                  [(ngModel)]="week.song_opening" name="wbSongOpening" [readonly]="readonly" placeholder="#" />
+              </span>
+            } @else {
+              &nbsp;
+            }
           </td>
           <td class="wb-right wb-split">
             <span class="wb-rlabel">{{ labels.prayer }}</span><span class="wb-rvalue"><app-assignee-picker
-                variant="inline" placeholder="Assign"
+                variant="inline" [readonly]="readonly" placeholder="Assign"
                 [publishers]="publishers" [history]="history" [historyDetail]="historyDetail"
                 [historyKey]="'opening_prayer_name'" [weekOf]="week.week_of"
                 [eligibility]="roleEligibility('opening_prayer_name')"
@@ -117,10 +130,14 @@
           @if (s.section === 'living') {
             <tr>
               <td class="wb-left">
-                <span class="wb-song-line">♫ {{ labels.song }}
-                  <input type="number" min="1" max="200" class="wb-inline wb-song"
-                    [(ngModel)]="week.song_middle" name="wbSongMiddle" placeholder="#" />
-                </span>
+                @if (!readonly || week.song_middle) {
+                  <span class="wb-song-line">♫ {{ labels.song }}
+                    <input type="number" min="1" max="200" class="wb-inline wb-song"
+                      [(ngModel)]="week.song_middle" name="wbSongMiddle" [readonly]="readonly" placeholder="#" />
+                  </span>
+                } @else {
+                  &nbsp;
+                }
               </td>
               <td class="wb-right">&nbsp;</td>
             </tr>
@@ -132,14 +149,16 @@
                   <strong class="wb-num">{{ row.num }}.</strong>
                   <input type="text" class="wb-inline wb-title"
                     [(ngModel)]="row.part.title" [name]="'wbTitle' + s.section + $index"
-                    placeholder="Part title" />
-                  <span class="wb-min-group">(<input type="number" min="1" class="wb-inline wb-min"
-                      [(ngModel)]="row.part.duration_minutes" [name]="'wbMin' + s.section + $index"
-                      placeholder="–" /> min.)</span>
-                  @if (s.section === 'ministry') {
+                    [readonly]="readonly" placeholder="Part title" />
+                  @if (!readonly || row.part.duration_minutes) {
+                    <span class="wb-min-group">(<input type="number" min="1" class="wb-inline wb-min"
+                        [(ngModel)]="row.part.duration_minutes" [name]="'wbMin' + s.section + $index"
+                        [readonly]="readonly" placeholder="–" /> min.)</span>
+                  }
+                  @if (s.section === 'ministry' && (!readonly || row.part.setting)) {
                     <input type="text" class="wb-inline wb-setting"
                       [(ngModel)]="row.part.setting" [name]="'wbSetting' + s.section + $index"
-                      placeholder="setting" />
+                      [readonly]="readonly" placeholder="setting" />
                   }
                 </span>
               </td>
@@ -148,7 +167,7 @@
                   <div class="wb-nameline">
                     <span class="wb-alabel">{{ pair.primary }}</span>
                     <app-assignee-picker
-                      variant="inline" placeholder="Assign"
+                      variant="inline" [readonly]="readonly" placeholder="Assign"
                       [publishers]="publishers" [history]="history" [historyDetail]="historyDetail"
                       [historyKey]="row.part.part_type" [weekOf]="week.week_of"
                       [eligibility]="partEligibility(row.part)"
@@ -160,7 +179,7 @@
                     @if (row.part.part_type === 'cbs') {
                       @if (cbsReaderPart; as reader) {
                         <app-assignee-picker
-                          variant="inline" placeholder="Assign"
+                          variant="inline" [readonly]="readonly" placeholder="Assign"
                           [publishers]="publishers" [history]="history" [historyDetail]="historyDetail"
                           [historyKey]="reader.part_type" [weekOf]="week.week_of"
                           [eligibility]="partEligibility(reader)"
@@ -171,7 +190,7 @@
                       }
                     } @else {
                       <app-assignee-picker
-                        variant="inline" placeholder="Assign"
+                        variant="inline" [readonly]="readonly" placeholder="Assign"
                         [publishers]="publishers" [history]="history" [historyDetail]="historyDetail"
                         [historyKey]="'assistant'" [weekOf]="week.week_of"
                         eligibility="any" [pairWith]="row.part.assignee_name"
@@ -181,7 +200,7 @@
                   </div>
                 } @else {
                   <app-assignee-picker
-                    variant="inline" placeholder="Assign"
+                    variant="inline" [readonly]="readonly" placeholder="Assign"
                     [publishers]="publishers" [history]="history" [historyDetail]="historyDetail"
                     [historyKey]="row.part.part_type" [weekOf]="week.week_of"
                     [eligibility]="partEligibility(row.part)"
@@ -202,15 +221,19 @@
         <!-- Closing song and prayer -->
         <tr>
           <td class="wb-left">
-            <span class="wb-song-line">♫ {{ labels.song }}
-              <input type="number" min="1" max="200" class="wb-inline wb-song"
-                [(ngModel)]="week.song_closing" name="wbSongClosing" placeholder="#" />
-              {{ labels.andPrayer }}
-            </span>
+            @if (!readonly || week.song_closing) {
+              <span class="wb-song-line">♫ {{ labels.song }}
+                <input type="number" min="1" max="200" class="wb-inline wb-song"
+                  [(ngModel)]="week.song_closing" name="wbSongClosing" [readonly]="readonly" placeholder="#" />
+                {{ labels.andPrayer }}
+              </span>
+            } @else {
+              &nbsp;
+            }
           </td>
           <td class="wb-right wb-split">
             <span class="wb-rlabel">{{ labels.prayer }}</span><span class="wb-rvalue"><app-assignee-picker
-                variant="inline" placeholder="Assign"
+                variant="inline" [readonly]="readonly" placeholder="Assign"
                 [publishers]="publishers" [history]="history" [historyDetail]="historyDetail"
                 [historyKey]="'closing_prayer_name'" [weekOf]="week.week_of"
                 [eligibility]="roleEligibility('closing_prayer_name')"
@@ -220,12 +243,15 @@
         </tr>
       </table>
 
-      <input
-        type="text"
-        class="wb-inline wb-notes"
-        [(ngModel)]="week.notes"
-        name="wbNotes"
-        placeholder="Notes (shown on the printed sheet)" />
+      @if (!readonly || week.notes) {
+        <input
+          type="text"
+          class="wb-inline wb-notes"
+          [(ngModel)]="week.notes"
+          name="wbNotes"
+          [readonly]="readonly"
+          placeholder="Notes (shown on the printed sheet)" />
+      }
 
     }
   </div>

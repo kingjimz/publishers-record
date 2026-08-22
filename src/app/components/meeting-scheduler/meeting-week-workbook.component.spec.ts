@@ -81,6 +81,52 @@ describe('MeetingWeekWorkbookComponent', () => {
     expect(labels).not.toContain('Conductor:');
   });
 
+  it('renders read-only: no picker triggers, no chips, empty optional fields hidden', async () => {
+    const week = createEmptyWeek('2026-08-10');
+    week.chairman_name = 'Chairman, John';
+    const fixture = TestBed.createComponent(MeetingWeekWorkbookComponent);
+    fixture.componentRef.setInput('week', week);
+    fixture.componentRef.setInput('readonly', true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const el: HTMLElement = fixture.nativeElement;
+
+    // Names render as plain text; there is nothing clickable in the name cells.
+    expect(el.querySelectorAll('app-assignee-picker button').length).toBe(0);
+    expect(el.textContent).toContain('John Chairman');
+
+    // Sheet still mirrors the print layout with numbering intact.
+    const nums = [...el.querySelectorAll('.wb-num')].map((n) => n.textContent?.trim());
+    expect(nums).toEqual(['1.', '2.', '3.', '4.', '5.', '6.', '7.', '8.']);
+
+    // Empty optional fields disappear like they do on paper.
+    expect(el.querySelector('.wb-head-reading')).toBeNull();
+    expect(el.querySelector('.wb-notes')).toBeNull();
+    expect(el.querySelector('.wb-cleaner')).toBeNull();
+
+    // Every remaining inline input is readonly.
+    const editable = [...el.querySelectorAll<HTMLInputElement>('input.wb-inline')].filter(
+      (i) => !i.readOnly
+    );
+    expect(editable.length).toBe(0);
+  });
+
+  it('renders the no-meeting panel read-only without reason chips', async () => {
+    const week = createEmptyWeek('2026-08-10', 'no_meeting');
+    week.no_meeting_reason = 'Circuit Assembly Week';
+    const fixture = TestBed.createComponent(MeetingWeekWorkbookComponent);
+    fixture.componentRef.setInput('week', week);
+    fixture.componentRef.setInput('readonly', true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const el: HTMLElement = fixture.nativeElement;
+
+    expect(el.querySelector<HTMLInputElement>('.wb-nm-headline')?.value).toBe(
+      'Circuit Assembly Week'
+    );
+    expect(el.querySelectorAll('.wb-nm-chip').length).toBe(0);
+  });
+
   it('uses Iloko labels when the language input is ilo', () => {
     const fixture = TestBed.createComponent(MeetingWeekWorkbookComponent);
     fixture.componentRef.setInput('week', createEmptyWeek('2026-08-10'));

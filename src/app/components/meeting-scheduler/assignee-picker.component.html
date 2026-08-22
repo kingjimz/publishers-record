@@ -1,19 +1,33 @@
 <div class="relative">
   @if (variant === 'inline') {
-    <!-- Workbook view: borderless trigger that reads like printed text. Warnings
-         stay visible as the amber icon; the sheet has no room for helper lines. -->
-    <button
-      #trigger
-      type="button"
-      (click)="openPanel()"
-      class="w-full min-w-0 cursor-pointer rounded-sm text-left align-baseline hover:bg-sky-50 focus-visible:bg-sky-50 focus-visible:outline-none">
-      <span [class.text-slate-400]="!value" [class.italic]="!value">
-        {{ displayValue || placeholder }}
+    @if (readonly) {
+      <!-- Saved-week sheet: the name as printed text; warnings stay as the icon. -->
+      <span class="inline-block w-full min-w-0 text-left">
+        @if (displayValue) {
+          {{ displayValue }}
+        } @else {
+          &nbsp;
+        }
+        @if (currentWarning) {
+          <i class="bi bi-exclamation-triangle-fill text-amber-500 text-xs ml-1" [title]="currentWarning"></i>
+        }
       </span>
-      @if (currentWarning) {
-        <i class="bi bi-exclamation-triangle-fill text-amber-500 text-xs ml-1" [title]="currentWarning"></i>
-      }
-    </button>
+    } @else {
+      <!-- Workbook view: borderless trigger that reads like printed text. Warnings
+           stay visible as the amber icon; the sheet has no room for helper lines. -->
+      <button
+        #trigger
+        type="button"
+        (click)="openPanel()"
+        class="w-full min-w-0 cursor-pointer rounded-sm text-left align-baseline hover:bg-sky-50 focus-visible:bg-sky-50 focus-visible:outline-none">
+        <span [class.text-slate-400]="!value" [class.italic]="!value">
+          {{ displayValue || placeholder }}
+        </span>
+        @if (currentWarning) {
+          <i class="bi bi-exclamation-triangle-fill text-amber-500 text-xs ml-1" [title]="currentWarning"></i>
+        }
+      </button>
+    }
   } @else {
     <button
       #trigger

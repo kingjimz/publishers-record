@@ -33,9 +33,12 @@ import { Eligibility, PART_TYPE_LABELS, PART_TYPE_RULES, ROLE_RULES } from './me
   imports: [CommonModule, FormsModule, AssigneePickerComponent],
   templateUrl: './meeting-week-workbook.component.html',
   styleUrl: './meeting-week-workbook.component.css',
+  host: { '[class.wb-readonly]': 'readonly' },
 })
 export class MeetingWeekWorkbookComponent {
   @Input({ required: true }) week!: MeetingWeek;
+  /** Render the sheet as a non-editable summary (saved week card). */
+  @Input() readonly = false;
   @Input() publishers: PublisherRecord[] = [];
   @Input() history: Map<string, string> = new Map();
   @Input() historyDetail: Map<string, PublisherTypeHistory> = new Map();

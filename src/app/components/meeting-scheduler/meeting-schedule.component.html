@@ -287,7 +287,15 @@
           } @else if (week) {
             <!-- Read-only summary -->
             <div class="pl-5 pr-4 py-4 text-sm">
-              @if (week.week_type === 'no_meeting') {
+              @if (mode === 'midweek') {
+                <app-meeting-week-workbook
+                  [week]="week"
+                  [readonly]="true"
+                  [publishers]="publishers"
+                  [history]="history"
+                  [historyDetail]="historyDetail"
+                  [language]="importLanguage" />
+              } @else if (week.week_type === 'no_meeting') {
                 <div class="flex flex-col gap-0.5">
                   <span class="font-medium text-slate-700 dark:text-slate-200">
                     {{ week.no_meeting_reason || 'Assembly or convention' }}
@@ -296,81 +304,6 @@
                     No meeting this week{{ week.notes ? ' — ' + week.notes : '.' }}
                   </span>
                 </div>
-              } @else if (mode === 'midweek') {
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-3">
-                  <div class="flex flex-col gap-1">
-                    <span class="text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">Chairman</span>
-                    <span>
-                      @if (week.chairman_name) {
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 dark:bg-slate-700/70 px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-200">
-                          <i class="bi bi-person text-slate-400 dark:text-slate-500"></i>{{ personName(week.chairman_name) }}
-                        </span>
-                      } @else {
-                        <span class="inline-flex items-center gap-1.5 rounded-full border border-dashed border-amber-300 dark:border-amber-700 px-2.5 py-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-                          <i class="bi bi-person-dash"></i>Unassigned
-                        </span>
-                      }
-                    </span>
-                  </div>
-                  <div class="flex flex-col gap-1">
-                    <span class="text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">Opening Prayer</span>
-                    <span>
-                      @if (week.opening_prayer_name) {
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 dark:bg-slate-700/70 px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-200">
-                          <i class="bi bi-person text-slate-400 dark:text-slate-500"></i>{{ personName(week.opening_prayer_name) }}
-                        </span>
-                      } @else {
-                        <span class="inline-flex items-center gap-1.5 rounded-full border border-dashed border-amber-300 dark:border-amber-700 px-2.5 py-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-                          <i class="bi bi-person-dash"></i>Unassigned
-                        </span>
-                      }
-                    </span>
-                  </div>
-                  <div class="flex flex-col gap-1">
-                    <span class="text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">Closing Prayer</span>
-                    <span>
-                      @if (week.closing_prayer_name) {
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 dark:bg-slate-700/70 px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-200">
-                          <i class="bi bi-person text-slate-400 dark:text-slate-500"></i>{{ personName(week.closing_prayer_name) }}
-                        </span>
-                      } @else {
-                        <span class="inline-flex items-center gap-1.5 rounded-full border border-dashed border-amber-300 dark:border-amber-700 px-2.5 py-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-                          <i class="bi bi-person-dash"></i>Unassigned
-                        </span>
-                      }
-                    </span>
-                  </div>
-                </div>
-                @if (week.parts.length > 0) {
-                  <div class="mt-3 divide-y divide-slate-100 dark:divide-slate-700/70 border-t border-slate-100 dark:border-slate-700/70">
-                    @for (part of week.parts; track $index) {
-                      <div class="flex items-center justify-between gap-3 py-1.5">
-                        <span class="flex items-center gap-2 min-w-0">
-                          <span class="truncate text-slate-600 dark:text-slate-300">{{ part.title }}</span>
-                          @if (part.duration_minutes) {
-                            <span class="shrink-0 rounded-md bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-slate-500 dark:text-slate-400">{{ part.duration_minutes }} min</span>
-                          }
-                        </span>
-                        <span class="flex items-center gap-1.5 shrink-0">
-                          @if (part.assignee_name) {
-                            <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 dark:bg-slate-700/70 px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-200">
-                              <i class="bi bi-person text-slate-400 dark:text-slate-500"></i>{{ personName(part.assignee_name) }}
-                            </span>
-                          } @else {
-                            <span class="inline-flex items-center gap-1.5 rounded-full border border-dashed border-amber-300 dark:border-amber-700 px-2.5 py-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-                              <i class="bi bi-person-dash"></i>Unassigned
-                            </span>
-                          }
-                          @if (part.assistant_name) {
-                            <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 dark:bg-slate-700/70 px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-200">
-                              <i class="bi bi-person-plus text-slate-400 dark:text-slate-500"></i>{{ personName(part.assistant_name) }}
-                            </span>
-                          }
-                        </span>
-                      </div>
-                    }
-                  </div>
-                }
               } @else {
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                   <div class="flex flex-col gap-1">

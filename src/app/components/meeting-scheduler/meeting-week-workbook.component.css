@@ -156,6 +156,22 @@
   text-transform: none;
 }
 
+/* Read-only (saved-week summary): the sheet is plain paper again — no hover
+   affordances, no placeholders, no caret. */
+:host(.wb-readonly) .wb-inline {
+  pointer-events: none;
+}
+
+:host(.wb-readonly) .wb-inline:hover,
+:host(.wb-readonly) .wb-inline:focus {
+  background: transparent;
+  box-shadow: none;
+}
+
+:host(.wb-readonly) .wb-inline::placeholder {
+  color: transparent;
+}
+
 .wb-inline[type='number'] {
   appearance: textfield;
   -moz-appearance: textfield;
