@@ -143,7 +143,36 @@
       </button>
     </div>
     @if (mode === 'midweek') {
-      <label class="flex items-center gap-2 ml-auto">
+      <div class="flex items-center gap-2 ml-auto">
+        <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Card view</span>
+        <div class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 p-0.5 bg-slate-50 dark:bg-slate-800">
+          <button type="button"
+            (click)="setSummaryView('workbook')"
+            class="rounded-md px-3 py-1 text-xs font-semibold transition-colors"
+            [class.bg-white]="summaryView === 'workbook'"
+            [class.dark:bg-slate-600]="summaryView === 'workbook'"
+            [class.shadow-sm]="summaryView === 'workbook'"
+            [class.text-slate-800]="summaryView === 'workbook'"
+            [class.dark:text-slate-100]="summaryView === 'workbook'"
+            [class.text-slate-500]="summaryView !== 'workbook'"
+            [class.dark:text-slate-400]="summaryView !== 'workbook'">
+            <i class="bi bi-file-earmark-richtext"></i> Workbook
+          </button>
+          <button type="button"
+            (click)="setSummaryView('form')"
+            class="rounded-md px-3 py-1 text-xs font-semibold transition-colors"
+            [class.bg-white]="summaryView === 'form'"
+            [class.dark:bg-slate-600]="summaryView === 'form'"
+            [class.shadow-sm]="summaryView === 'form'"
+            [class.text-slate-800]="summaryView === 'form'"
+            [class.dark:text-slate-100]="summaryView === 'form'"
+            [class.text-slate-500]="summaryView !== 'form'"
+            [class.dark:text-slate-400]="summaryView !== 'form'">
+            <i class="bi bi-list-ul"></i> Compact
+          </button>
+        </div>
+      </div>
+      <label class="flex items-center gap-2">
         <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Workbook language</span>
         <select
           [ngModel]="importLanguage"
@@ -279,6 +308,7 @@
                 [publishers]="publishers"
                 [history]="history"
                 [historyDetail]="historyDetail"
+                [language]="importLanguage"
                 [saving]="saving"
                 (save)="onSaveDraft()"
                 (cancelEdit)="onCancelEdit()" />
@@ -286,7 +316,15 @@
           } @else if (week) {
             <!-- Read-only summary -->
             <div class="pl-5 pr-4 py-4 text-sm">
-              @if (week.week_type === 'no_meeting') {
+              @if (mode === 'midweek' && summaryView === 'workbook') {
+                <app-meeting-week-workbook
+                  [week]="week"
+                  [readonly]="true"
+                  [publishers]="publishers"
+                  [history]="history"
+                  [historyDetail]="historyDetail"
+                  [language]="importLanguage" />
+              } @else if (week.week_type === 'no_meeting') {
                 <div class="flex flex-col gap-0.5">
                   <span class="font-medium text-slate-700 dark:text-slate-200">
                     {{ week.no_meeting_reason || 'Assembly or convention' }}

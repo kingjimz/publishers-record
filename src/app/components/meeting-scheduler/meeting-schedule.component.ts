@@ -29,9 +29,11 @@ import { addDaysIso, buildDefaultWeekParts, createEmptyWeek } from './meeting-de
 
 export type SchedulerMode = 'midweek' | 'weekend';
 import { MeetingWeekEditorComponent } from './meeting-week-editor.component';
+import { MeetingWeekWorkbookComponent } from './meeting-week-workbook.component';
 
 const CONGREGATION_NAME = 'Bolaoen Congregation';
 const IMPORT_LANGUAGE_STORAGE_KEY = 'meeting-import-language';
+const SUMMARY_VIEW_STORAGE_KEY = 'meeting-summary-view';
 
 /** Output kinds routed through the generation confirmation modal. */
 type GenerateKind = 'print' | 'png' | 'pdf' | 'slips';
@@ -70,7 +72,7 @@ const IMPORT_STEP_TEMPLATE: ReadonlyArray<Pick<ImportProgressStep, 'label' | 'de
 @Component({
   selector: 'app-meeting-schedule',
   standalone: true,
-  imports: [CommonModule, FormsModule, MeetingWeekEditorComponent],
+  imports: [CommonModule, FormsModule, MeetingWeekEditorComponent, MeetingWeekWorkbookComponent],
   templateUrl: './meeting-schedule.component.html',
   styleUrl: './meeting-schedule.component.css',
 })
@@ -138,6 +140,28 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
     this.importLanguage = code;
     try {
       localStorage.setItem(IMPORT_LANGUAGE_STORAGE_KEY, code);
+    } catch {
+      /* storage unavailable */
+    }
+  }
+
+  /** Saved-week card style: workbook sheet or the compact field summary; persisted per device. */
+  protected summaryView: 'workbook' | 'form' = MeetingScheduleComponent.storedSummaryView();
+
+  private static storedSummaryView(): 'workbook' | 'form' {
+    try {
+      const stored = localStorage.getItem(SUMMARY_VIEW_STORAGE_KEY);
+      if (stored === 'form' || stored === 'workbook') return stored;
+    } catch {
+      /* storage unavailable */
+    }
+    return 'workbook';
+  }
+
+  protected setSummaryView(view: 'workbook' | 'form'): void {
+    this.summaryView = view;
+    try {
+      localStorage.setItem(SUMMARY_VIEW_STORAGE_KEY, view);
     } catch {
       /* storage unavailable */
     }

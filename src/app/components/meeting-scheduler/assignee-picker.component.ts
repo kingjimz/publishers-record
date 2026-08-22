@@ -72,6 +72,11 @@ const PANEL_CHROME = 70;
 })
 export class AssigneePickerComponent implements OnDestroy {
   @Input() publishers: PublisherRecord[] = [];
+  /** 'field' renders the standard bordered control; 'inline' renders a
+   * borderless trigger that inherits the surrounding typography (workbook view). */
+  @Input() variant: 'field' | 'inline' = 'field';
+  /** Inline variant only: render the value as plain text, no panel (saved-week sheet). */
+  @Input() readonly = false;
   @Input() eligibility: Eligibility = 'any';
   @Input() history: Map<string, string> = new Map();
   /** Per-publisher assignment breakdown by part type / role key. */

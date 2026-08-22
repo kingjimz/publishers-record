@@ -1,0 +1,258 @@
+<div class="wb-scroll">
+  <div class="wb-sheet">
+
+    <!-- Week band: date range | weekly Bible reading -->
+    <div class="wb-head">
+      <span>{{ headingRange }}</span>
+      @if (!readonly || week.weekly_bible_reading) {
+        <span class="wb-head-sep">|</span>
+        <input
+          type="text"
+          class="wb-inline wb-head-reading"
+          [(ngModel)]="week.weekly_bible_reading"
+          name="wbWeeklyBibleReading"
+          [readonly]="readonly"
+          placeholder="Bible reading" />
+      }
+    </div>
+
+    @if (week.week_type === 'no_meeting') {
+
+      <!-- No-meeting placeholder, same red panel as the printed sheet -->
+      <div class="wb-nm">
+        <input
+          type="text"
+          class="wb-inline wb-nm-headline"
+          [(ngModel)]="week.no_meeting_reason"
+          name="wbNoMeetingReason"
+          [readonly]="readonly"
+          [placeholder]="labels.noMeeting" />
+        <p class="wb-nm-sub">{{ labels.noMeeting }}</p>
+        @if (!readonly) {
+          <div class="wb-nm-chips">
+            @for (reason of noMeetingReasons; track reason) {
+              <button type="button"
+                class="wb-nm-chip"
+                [class.wb-nm-chip-active]="week.no_meeting_reason === reason"
+                (click)="week.no_meeting_reason = reason">
+                {{ reason }}
+              </button>
+            }
+          </div>
+        }
+        @if (!readonly || week.notes) {
+          <input
+            type="text"
+            class="wb-inline wb-nm-notes"
+            [(ngModel)]="week.notes"
+            name="wbNoMeetingNotes"
+            [readonly]="readonly"
+            placeholder="Notes (e.g. venue)" />
+        }
+      </div>
+
+    } @else {
+
+      @if (week.week_type === 'co_visit') {
+        <p class="wb-special">{{ labels.coVisit }}</p>
+      } @else if (week.week_type === 'memorial') {
+        <p class="wb-special">{{ labels.memorial }}</p>
+      }
+
+      <table class="wb-program">
+        <!-- Cleaner of the week -->
+        <tr>
+          <td class="wb-left">&nbsp;</td>
+          <td class="wb-right wb-split">
+            <span class="wb-rlabel">{{ labels.cleaner }}</span><span class="wb-rvalue">@if (readonly) {<strong>{{ week.cleaning_group ? week.cleaning_group.toUpperCase() : ' ' }}</strong>} @else {<select
+                class="wb-inline wb-cleaner"
+                [(ngModel)]="week.cleaning_group"
+                name="wbCleaningGroup">
+                <option [ngValue]="null">—</option>
+                @if (week.cleaning_group && !cleaningGroups.includes(week.cleaning_group)) {
+                  <option [ngValue]="week.cleaning_group">{{ week.cleaning_group }}</option>
+                }
+                @for (group of cleaningGroups; track group) {
+                  <option [ngValue]="group">{{ group }}</option>
+                }
+              </select>}</span>
+          </td>
+        </tr>
+
+        <!-- Chairman -->
+        <tr>
+          <td class="wb-left">&nbsp;</td>
+          <td class="wb-right wb-split">
+            <span class="wb-rlabel">{{ labels.chairman }}</span><span class="wb-rvalue"><app-assignee-picker
+                variant="inline" [readonly]="readonly" placeholder="Assign"
+                [publishers]="publishers" [history]="history" [historyDetail]="historyDetail"
+                [historyKey]="'chairman_name'" [weekOf]="week.week_of"
+                [eligibility]="roleEligibility('chairman_name')"
+                [weekAssignments]="weekAssignments" [slotLabel]="'Chairman'"
+                [value]="week.chairman_name" (valueChange)="week.chairman_name = $event" /></span>
+          </td>
+        </tr>
+
+        <!-- Opening song and prayer -->
+        <tr>
+          <td class="wb-left">
+            @if (!readonly || week.song_opening) {
+              <span class="wb-song-line">♫ {{ labels.song }}
+                <input type="number" min="1" max="200" class="wb-inline wb-song"
+                  [(ngModel)]="week.song_opening" name="wbSongOpening" [readonly]="readonly" placeholder="#" />
+              </span>
+            } @else {
+              &nbsp;
+            }
+          </td>
+          <td class="wb-right wb-split">
+            <span class="wb-rlabel">{{ labels.prayer }}</span><span class="wb-rvalue"><app-assignee-picker
+                variant="inline" [readonly]="readonly" placeholder="Assign"
+                [publishers]="publishers" [history]="history" [historyDetail]="historyDetail"
+                [historyKey]="'opening_prayer_name'" [weekOf]="week.week_of"
+                [eligibility]="roleEligibility('opening_prayer_name')"
+                [weekAssignments]="weekAssignments" [slotLabel]="'Opening Prayer'"
+                [value]="week.opening_prayer_name" (valueChange)="week.opening_prayer_name = $event" /></span>
+          </td>
+        </tr>
+
+        <!-- Opening comments (chairman mirror) -->
+        <tr>
+          <td class="wb-left">● {{ labels.openingComments }}</td>
+          <td class="wb-right wb-mirror">{{ chairmanDisplay || ' ' }}</td>
+        </tr>
+
+        <!-- Program sections with continuous numbering -->
+        @for (s of sections; track s.section) {
+          <tr>
+            <td colspan="2" class="wb-section" [style.background]="s.color">{{ s.heading }}</td>
+          </tr>
+          @if (s.section === 'living') {
+            <tr>
+              <td class="wb-left">
+                @if (!readonly || week.song_middle) {
+                  <span class="wb-song-line">♫ {{ labels.song }}
+                    <input type="number" min="1" max="200" class="wb-inline wb-song"
+                      [(ngModel)]="week.song_middle" name="wbSongMiddle" [readonly]="readonly" placeholder="#" />
+                  </span>
+                } @else {
+                  &nbsp;
+                }
+              </td>
+              <td class="wb-right">&nbsp;</td>
+            </tr>
+          }
+          @for (row of s.rows; track trackRow($index)) {
+            <tr>
+              <td class="wb-left">
+                <span class="wb-part-line">
+                  <strong class="wb-num">{{ row.num }}.</strong>
+                  <input type="text" class="wb-inline wb-title"
+                    [(ngModel)]="row.part.title" [name]="'wbTitle' + s.section + $index"
+                    [readonly]="readonly" placeholder="Part title" />
+                  @if (!readonly || row.part.duration_minutes) {
+                    <span class="wb-min-group">(<input type="number" min="1" class="wb-inline wb-min"
+                        [(ngModel)]="row.part.duration_minutes" [name]="'wbMin' + s.section + $index"
+                        [readonly]="readonly" placeholder="–" /> min.)</span>
+                  }
+                  @if (s.section === 'ministry' && (!readonly || row.part.setting)) {
+                    <input type="text" class="wb-inline wb-setting"
+                      [(ngModel)]="row.part.setting" [name]="'wbSetting' + s.section + $index"
+                      [readonly]="readonly" placeholder="setting" />
+                  }
+                </span>
+              </td>
+              <td class="wb-right">
+                @if (rolePair(row.part); as pair) {
+                  <div class="wb-nameline">
+                    <span class="wb-alabel">{{ pair.primary }}</span>
+                    <app-assignee-picker
+                      variant="inline" [readonly]="readonly" placeholder="Assign"
+                      [publishers]="publishers" [history]="history" [historyDetail]="historyDetail"
+                      [historyKey]="row.part.part_type" [weekOf]="week.week_of"
+                      [eligibility]="partEligibility(row.part)"
+                      [weekAssignments]="weekAssignments" [slotLabel]="partSlotLabel(row.part)"
+                      [value]="row.part.assignee_name" (valueChange)="row.part.assignee_name = $event" />
+                  </div>
+                  <div class="wb-nameline">
+                    <span class="wb-alabel">{{ pair.secondary }}</span>
+                    @if (row.part.part_type === 'cbs') {
+                      @if (cbsReaderPart; as reader) {
+                        <app-assignee-picker
+                          variant="inline" [readonly]="readonly" placeholder="Assign"
+                          [publishers]="publishers" [history]="history" [historyDetail]="historyDetail"
+                          [historyKey]="reader.part_type" [weekOf]="week.week_of"
+                          [eligibility]="partEligibility(reader)"
+                          [weekAssignments]="weekAssignments" [slotLabel]="partSlotLabel(reader)"
+                          [value]="reader.assignee_name" (valueChange)="reader.assignee_name = $event" />
+                      } @else {
+                        <span class="wb-none">&nbsp;</span>
+                      }
+                    } @else {
+                      <app-assignee-picker
+                        variant="inline" [readonly]="readonly" placeholder="Assign"
+                        [publishers]="publishers" [history]="history" [historyDetail]="historyDetail"
+                        [historyKey]="'assistant'" [weekOf]="week.week_of"
+                        eligibility="any" [pairWith]="row.part.assignee_name"
+                        [weekAssignments]="weekAssignments" [slotLabel]="'Assistant: ' + partSlotLabel(row.part)"
+                        [value]="row.part.assistant_name" (valueChange)="row.part.assistant_name = $event" />
+                    }
+                  </div>
+                } @else {
+                  <app-assignee-picker
+                    variant="inline" [readonly]="readonly" placeholder="Assign"
+                    [publishers]="publishers" [history]="history" [historyDetail]="historyDetail"
+                    [historyKey]="row.part.part_type" [weekOf]="week.week_of"
+                    [eligibility]="partEligibility(row.part)"
+                    [weekAssignments]="weekAssignments" [slotLabel]="partSlotLabel(row.part)"
+                    [value]="row.part.assignee_name" (valueChange)="row.part.assignee_name = $event" />
+                }
+              </td>
+            </tr>
+          }
+        }
+
+        <!-- Closing comments (chairman mirror) -->
+        <tr>
+          <td class="wb-left">● {{ labels.closingComments }}</td>
+          <td class="wb-right wb-mirror">{{ chairmanDisplay || ' ' }}</td>
+        </tr>
+
+        <!-- Closing song and prayer -->
+        <tr>
+          <td class="wb-left">
+            @if (!readonly || week.song_closing) {
+              <span class="wb-song-line">♫ {{ labels.song }}
+                <input type="number" min="1" max="200" class="wb-inline wb-song"
+                  [(ngModel)]="week.song_closing" name="wbSongClosing" [readonly]="readonly" placeholder="#" />
+                {{ labels.andPrayer }}
+              </span>
+            } @else {
+              &nbsp;
+            }
+          </td>
+          <td class="wb-right wb-split">
+            <span class="wb-rlabel">{{ labels.prayer }}</span><span class="wb-rvalue"><app-assignee-picker
+                variant="inline" [readonly]="readonly" placeholder="Assign"
+                [publishers]="publishers" [history]="history" [historyDetail]="historyDetail"
+                [historyKey]="'closing_prayer_name'" [weekOf]="week.week_of"
+                [eligibility]="roleEligibility('closing_prayer_name')"
+                [weekAssignments]="weekAssignments" [slotLabel]="'Closing Prayer'"
+                [value]="week.closing_prayer_name" (valueChange)="week.closing_prayer_name = $event" /></span>
+          </td>
+        </tr>
+      </table>
+
+      @if (!readonly || week.notes) {
+        <input
+          type="text"
+          class="wb-inline wb-notes"
+          [(ngModel)]="week.notes"
+          name="wbNotes"
+          [readonly]="readonly"
+          placeholder="Notes (shown on the printed sheet)" />
+      }
+
+    }
+  </div>
+</div>

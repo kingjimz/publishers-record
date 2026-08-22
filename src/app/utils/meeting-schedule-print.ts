@@ -1,10 +1,20 @@
 import {
   MeetingPart,
-  MeetingSection,
   MeetingWeek,
 } from '../services/meeting-schedule.service';
 import { STUDENT_PART_TYPES } from '../components/meeting-scheduler/meeting-defaults';
+import {
+  LABELS,
+  SECTION_COLORS,
+  ScheduleLabels,
+  ScheduleLanguage,
+  assignmentRolePair,
+  buildMidweekSections,
+  weekRange,
+} from './meeting-schedule-model';
 import { displayPublisherName } from './publisher-name';
+
+export type { ScheduleLanguage } from './meeting-schedule-model';
 
 function esc(s: string | null | undefined): string {
   if (s == null || s === '') return '';
@@ -35,118 +45,8 @@ function shortDate(iso: string | null | undefined): string {
 }
 
 export type ScheduleDocumentMode = 'midweek' | 'weekend';
-export type ScheduleLanguage = 'en' | 'ilo';
 
-interface PrintLabels {
-  midweekTitle: string;
-  weekendTitle: string;
-  cleaner: string;
-  chairman: string;
-  prayer: string;
-  song: string;
-  andPrayer: string;
-  openingComments: string;
-  closingComments: string;
-  sections: Record<MeetingSection, string>;
-  student: string;
-  assistant: string;
-  preacher: string;
-  householder: string;
-  conductor: string;
-  reader: string;
-  publicTalk: string;
-  watchtowerStudy: string;
-  noMeeting: string;
-  coVisit: string;
-  memorial: string;
-  months: string[];
-}
-
-const LABELS: Record<ScheduleLanguage, PrintLabels> = {
-  en: {
-    midweekTitle: 'Midweek Meeting Schedule',
-    weekendTitle: 'Weekend Meeting Schedule',
-    cleaner: 'Cleaner of the week',
-    chairman: 'Chairman:',
-    prayer: 'Prayer:',
-    song: 'Song',
-    andPrayer: 'and Prayer',
-    openingComments: 'Opening Comments (1 min.)',
-    closingComments: 'Concluding Comments (3 min.)',
-    sections: {
-      treasures: "TREASURES FROM GOD'S WORD",
-      ministry: 'APPLY YOURSELF TO THE FIELD MINISTRY',
-      living: 'LIVING AS CHRISTIANS',
-    },
-    student: 'Student:',
-    assistant: 'Assistant:',
-    preacher: 'Preacher:',
-    householder: 'House Holder:',
-    conductor: 'Conductor:',
-    reader: 'Reader:',
-    publicTalk: 'PUBLIC TALK',
-    watchtowerStudy: 'WATCHTOWER STUDY',
-    noMeeting: 'No meeting this week',
-    coVisit: 'Circuit overseer visit',
-    memorial: 'Memorial week',
-    months: [
-      'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
-      'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER',
-    ],
-  },
-  ilo: {
-    midweekTitle: 'Eskediul ti Gimong iti Tengnga ti Lawas',
-    weekendTitle: 'Eskediul ti Gimong iti Ngudo ti Lawas',
-    cleaner: 'Cleaner of the week',
-    chairman: 'Tserman:',
-    prayer: 'Kararag:',
-    song: 'Kanta',
-    andPrayer: 'ken Kararag',
-    openingComments: 'Panglukat a Sasao (1 min.)',
-    closingComments: 'Pangserra a Sasao (3 min.)',
-    sections: {
-      treasures: 'GAMENG MANIPUD ITI SAO TI DIOS',
-      ministry: 'AGBALIN A MAS EPEKTIBO ITI MINISTERIO',
-      living: 'PANAGBIAG KAS KRISTIANO',
-    },
-    student: 'Estudiante:',
-    assistant: 'Katulonganna:',
-    preacher: 'Preacher:',
-    householder: 'House Holder:',
-    conductor: 'Konduktor:',
-    reader: 'Parabasa:',
-    publicTalk: 'PALAWAG PUBLIKO',
-    watchtowerStudy: 'PANAGADAL ITI PAGWANAWANAN',
-    noMeeting: 'Awan ti gimong iti daytoy a lawas',
-    coVisit: 'Panagsarungkar ti manangaywan iti sirkito',
-    memorial: 'Memorial',
-    months: [
-      'ENERO', 'PEBRERO', 'MARSO', 'ABRIL', 'MAYO', 'HUNIO',
-      'HULIO', 'AGOSTO', 'SEPTIEMBRE', 'OKTUBRE', 'NOBIEMBRE', 'DISIEMBRE',
-    ],
-  },
-};
-
-const SECTION_COLORS: Record<MeetingSection, string> = {
-  treasures: '#57646e',
-  ministry: '#bf8f00',
-  living: '#953734',
-};
-
-/** "AGOSTO 10 – 16" style range for the workbook week (Monday to Sunday). */
-function weekRange(weekOfIso: string, labels: PrintLabels): string {
-  const start = new Date(`${weekOfIso}T00:00:00`);
-  if (Number.isNaN(start.getTime())) return esc(weekOfIso);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
-
-  const startMonth = labels.months[start.getMonth()];
-  const endMonth = labels.months[end.getMonth()];
-  if (start.getMonth() === end.getMonth()) {
-    return `${startMonth} ${start.getDate()} – ${end.getDate()}`;
-  }
-  return `${startMonth} ${start.getDate()} – ${endMonth} ${end.getDate()}`;
-}
+type PrintLabels = ScheduleLabels;
 
 /** Two-line assignment cell: "Label: Name" rows. */
 function labeledNames(pairs: [string, string | null | undefined][]): string {
@@ -162,27 +62,15 @@ function assignmentCell(
   readerName: string | null,
   labels: PrintLabels
 ): string {
-  if (part.part_type === 'bible_reading' || part.part_type === 'student_talk') {
-    if (!part.assignee_name && !part.assistant_name) return '&#160;';
-    return labeledNames([
-      [labels.student, part.assignee_name],
-      [labels.assistant, part.assistant_name],
-    ]);
+  const pair = assignmentRolePair(part.part_type, labels);
+  if (!pair) {
+    return part.assignee_name ? escName(part.assignee_name) : '&#160;';
   }
-  if (part.part_type === 'student_demo') {
-    if (!part.assignee_name && !part.assistant_name) return '&#160;';
-    return labeledNames([
-      [labels.preacher, part.assignee_name],
-      [labels.householder, part.assistant_name],
-    ]);
-  }
-  if (part.part_type === 'cbs') {
-    return labeledNames([
-      [labels.conductor, part.assignee_name],
-      [labels.reader, readerName],
-    ]);
-  }
-  return part.assignee_name ? escName(part.assignee_name) : '&#160;';
+  const secondaryName = part.part_type === 'cbs' ? readerName : part.assistant_name;
+  return labeledNames([
+    [pair.primary, part.assignee_name],
+    [pair.secondary, secondaryName],
+  ]);
 }
 
 function partTitleCell(part: MeetingPart, num: number): string {
@@ -211,7 +99,7 @@ function noMeetingBlock(heading: string, week: MeetingWeek, labels: PrintLabels,
 }
 
 function midweekBlock(week: MeetingWeek, labels: PrintLabels): string {
-  const heading = `${weekRange(week.week_of, labels)}${
+  const heading = `${esc(weekRange(week.week_of, labels))}${
     week.weekly_bible_reading ? ` | ${esc(week.weekly_bible_reading.toUpperCase())}` : ''
   }`;
 
@@ -229,32 +117,24 @@ function midweekBlock(week: MeetingWeek, labels: PrintLabels): string {
   const readerName =
     week.parts.find((p) => p.part_type === 'cbs_reader')?.assignee_name ?? null;
 
-  // Continuous numbering across sections, skipping the merged CBS reader row.
-  let num = 0;
-  const sectionRows = (['treasures', 'ministry', 'living'] as MeetingSection[])
-    .map((section) => {
-      const parts = week.parts.filter(
-        (p) => p.section === section && p.part_type !== 'cbs_reader'
-      );
-      if (parts.length === 0) return '';
-
+  const sectionRows = buildMidweekSections(week, labels)
+    .map((sectionVm) => {
       // The middle song opens the Living as Christians section.
       const songRow =
-        section === 'living' && week.song_middle
+        sectionVm.section === 'living' && week.song_middle
           ? `<tr><td class="left">♫ ${labels.song} ${week.song_middle}</td><td class="right">&#160;</td></tr>`
           : '';
 
-      const rows = parts
-        .map((part) => {
-          num++;
-          return `<tr>
+      const rows = sectionVm.rows
+        .map(
+          ({ part, num }) => `<tr>
             <td class="left">${partTitleCell(part, num)}</td>
             <td class="right">${assignmentCell(part, readerName, labels)}</td>
-          </tr>`;
-        })
+          </tr>`
+        )
         .join('');
 
-      return `<tr><td colspan="2" class="section" style="background:${SECTION_COLORS[section]}">${labels.sections[section]}</td></tr>${songRow}${rows}`;
+      return `<tr><td colspan="2" class="section" style="background:${sectionVm.color}">${sectionVm.heading}</td></tr>${songRow}${rows}`;
     })
     .join('');
 
@@ -285,7 +165,7 @@ function midweekBlock(week: MeetingWeek, labels: PrintLabels): string {
 }
 
 function weekendBlock(week: MeetingWeek, labels: PrintLabels): string {
-  const heading = weekRange(week.week_of, labels);
+  const heading = esc(weekRange(week.week_of, labels));
 
   if (week.week_type === 'no_meeting') {
     return noMeetingBlock(heading, week, labels, 'wknd');
