@@ -33,6 +33,7 @@ import { MeetingWeekWorkbookComponent } from './meeting-week-workbook.component'
 
 const CONGREGATION_NAME = 'Bolaoen Congregation';
 const IMPORT_LANGUAGE_STORAGE_KEY = 'meeting-import-language';
+const SUMMARY_VIEW_STORAGE_KEY = 'meeting-summary-view';
 
 /** Output kinds routed through the generation confirmation modal. */
 type GenerateKind = 'print' | 'png' | 'pdf' | 'slips';
@@ -139,6 +140,28 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
     this.importLanguage = code;
     try {
       localStorage.setItem(IMPORT_LANGUAGE_STORAGE_KEY, code);
+    } catch {
+      /* storage unavailable */
+    }
+  }
+
+  /** Saved-week card style: workbook sheet or the compact field summary; persisted per device. */
+  protected summaryView: 'workbook' | 'form' = MeetingScheduleComponent.storedSummaryView();
+
+  private static storedSummaryView(): 'workbook' | 'form' {
+    try {
+      const stored = localStorage.getItem(SUMMARY_VIEW_STORAGE_KEY);
+      if (stored === 'form' || stored === 'workbook') return stored;
+    } catch {
+      /* storage unavailable */
+    }
+    return 'workbook';
+  }
+
+  protected setSummaryView(view: 'workbook' | 'form'): void {
+    this.summaryView = view;
+    try {
+      localStorage.setItem(SUMMARY_VIEW_STORAGE_KEY, view);
     } catch {
       /* storage unavailable */
     }
