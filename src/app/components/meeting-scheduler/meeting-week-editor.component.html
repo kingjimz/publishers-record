@@ -1,5 +1,97 @@
 <div class="space-y-5">
 
+  @if (workbookAvailable) {
+    <!-- Workbook (WYSIWYG sheet) vs classic form view -->
+    <div class="flex items-center justify-between gap-3">
+      <div class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 p-0.5 bg-slate-50 dark:bg-slate-800">
+        <button type="button"
+          (click)="setViewMode('workbook')"
+          class="rounded-md px-3 py-1 text-xs font-semibold transition-colors"
+          [class.bg-white]="viewMode === 'workbook'"
+          [class.dark:bg-slate-600]="viewMode === 'workbook'"
+          [class.shadow-sm]="viewMode === 'workbook'"
+          [class.text-slate-800]="viewMode === 'workbook'"
+          [class.dark:text-slate-100]="viewMode === 'workbook'"
+          [class.text-slate-500]="viewMode !== 'workbook'"
+          [class.dark:text-slate-400]="viewMode !== 'workbook'">
+          <i class="bi bi-file-earmark-richtext"></i> Workbook
+        </button>
+        <button type="button"
+          (click)="setViewMode('form')"
+          class="rounded-md px-3 py-1 text-xs font-semibold transition-colors"
+          [class.bg-white]="viewMode === 'form'"
+          [class.dark:bg-slate-600]="viewMode === 'form'"
+          [class.shadow-sm]="viewMode === 'form'"
+          [class.text-slate-800]="viewMode === 'form'"
+          [class.dark:text-slate-100]="viewMode === 'form'"
+          [class.text-slate-500]="viewMode !== 'form'"
+          [class.dark:text-slate-400]="viewMode !== 'form'">
+          <i class="bi bi-input-cursor-text"></i> Form
+        </button>
+      </div>
+      @if (showWorkbook) {
+        <p class="text-xs text-slate-400 dark:text-slate-500 hidden sm:block">
+          Click any cell to edit. Use Form view to add, remove, or reorder parts.
+        </p>
+      }
+    </div>
+  }
+
+  @if (showWorkbook) {
+
+    <!-- Fields that do not appear on the printed sheet -->
+    <div class="flex flex-wrap items-start gap-3">
+      <div class="flex flex-col gap-1 min-w-56">
+        <label class="flex flex-col gap-1">
+          <span class="ms-field-label">Week Type</span>
+          <select
+            [ngModel]="pendingWeekType ?? week.week_type"
+            (ngModelChange)="onWeekTypeChange($event)"
+            name="wbBarWeekType"
+            class="ms-field">
+            <option value="regular">Regular week</option>
+            <option value="co_visit">Circuit overseer visit</option>
+            <option value="memorial">Memorial</option>
+            <option value="no_meeting">No meeting (assembly / convention)</option>
+          </select>
+        </label>
+        @if (pendingWeekType) {
+          <div class="mt-1 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-900/20 px-3 py-2.5">
+            <div class="flex items-start gap-2">
+              <i class="bi bi-exclamation-triangle-fill text-amber-500 mt-0.5 text-sm"></i>
+              <p class="text-xs text-amber-800 dark:text-amber-300">
+                Changing the week type rebuilds the program and clears part assignments.
+              </p>
+            </div>
+            <div class="mt-2 flex items-center justify-end gap-1.5">
+              <button type="button" (click)="cancelWeekTypeChange()"
+                class="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-700/70 transition-colors">
+                Keep current
+              </button>
+              <button type="button" (click)="confirmWeekTypeChange()"
+                class="rounded-lg bg-amber-500 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-600 transition-colors">
+                Change week type
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+      <label class="flex flex-col gap-1">
+        <span class="ms-field-label">Meeting Date</span>
+        <input type="date" [(ngModel)]="week.midweek_date" name="wbBarMidweekDate" class="ms-field" />
+      </label>
+    </div>
+
+    <app-meeting-week-workbook
+      [week]="week"
+      [publishers]="publishers"
+      [history]="history"
+      [historyDetail]="historyDetail"
+      [weekAssignments]="draftAssignments"
+      [language]="language" />
+
+  } @else {
+
   <!-- Week type and notes -->
   <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
     <div class="flex flex-col gap-1">
@@ -347,6 +439,8 @@
         }
       </div>
     </div>
+  }
+
   }
 
   <!-- Actions -->

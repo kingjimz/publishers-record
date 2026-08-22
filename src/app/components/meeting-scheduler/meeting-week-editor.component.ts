@@ -11,6 +11,7 @@ import {
   PublisherTypeHistory,
 } from '../../services/meeting-schedule.service';
 import { PublisherRecord } from '../../services/supabase.service';
+import { ScheduleLanguage } from '../../utils/meeting-schedule-model';
 import { AssigneePickerComponent } from './assignee-picker.component';
 import {
   Eligibility,
@@ -19,12 +20,17 @@ import {
   ROLE_RULES,
   buildDefaultWeekParts,
 } from './meeting-defaults';
+import { MeetingWeekWorkbookComponent } from './meeting-week-workbook.component';
+
+/** Preferred editor view, persisted per device. */
+const EDITOR_VIEW_STORAGE_KEY = 'pr-meeting-editor-view';
+type EditorViewMode = 'workbook' | 'form';
 
 /** Edits one week's midweek program and weekend assignments in place on a draft copy. */
 @Component({
   selector: 'app-meeting-week-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, AssigneePickerComponent],
+  imports: [CommonModule, FormsModule, AssigneePickerComponent, MeetingWeekWorkbookComponent],
   templateUrl: './meeting-week-editor.component.html',
 })
 export class MeetingWeekEditorComponent {
@@ -34,9 +40,42 @@ export class MeetingWeekEditorComponent {
   @Input() publishers: PublisherRecord[] = [];
   @Input() history: Map<string, string> = new Map();
   @Input() historyDetail: Map<string, PublisherTypeHistory> = new Map();
+  /** Schedule language, so the workbook view matches the export. */
+  @Input() language: ScheduleLanguage = 'en';
   @Input() saving = false;
   @Output() save = new EventEmitter<void>();
   @Output() cancelEdit = new EventEmitter<void>();
+
+  /** Workbook (WYSIWYG sheet) or classic form view; midweek only. */
+  protected viewMode: EditorViewMode = MeetingWeekEditorComponent.storedViewMode();
+
+  private static storedViewMode(): EditorViewMode {
+    try {
+      const stored = localStorage.getItem(EDITOR_VIEW_STORAGE_KEY);
+      if (stored === 'form' || stored === 'workbook') return stored;
+    } catch {
+      // Storage unavailable (private mode); fall through to the default.
+    }
+    return 'workbook';
+  }
+
+  protected setViewMode(mode: EditorViewMode): void {
+    this.viewMode = mode;
+    try {
+      localStorage.setItem(EDITOR_VIEW_STORAGE_KEY, mode);
+    } catch {
+      // Storage unavailable; the choice still applies for this session.
+    }
+  }
+
+  /** The workbook sheet only exists for the midweek program. */
+  protected get workbookAvailable(): boolean {
+    return this.mode === 'midweek';
+  }
+
+  protected get showWorkbook(): boolean {
+    return this.workbookAvailable && this.viewMode === 'workbook';
+  }
 
   protected readonly partTypeLabels = PART_TYPE_LABELS;
 
