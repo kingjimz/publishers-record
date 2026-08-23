@@ -13,6 +13,7 @@ import {
   MeetingScheduleService,
   MeetingWeek,
   PublisherTypeHistory,
+  WeekendSchedule,
 } from '../../services/meeting-schedule.service';
 import { PublisherRecord, SupabaseService } from '../../services/supabase.service';
 import { TalkOutline, TalkOutlineService } from '../../services/talk-outline.service';
@@ -26,16 +27,26 @@ import {
   collectAssignmentSlips,
 } from '../../utils/meeting-schedule-print';
 import { buildWeekendRangeDocument, weekendRangeLabel } from '../../utils/weekend-range-print';
+import {
+  activeWeekendSchedule,
+  computeScheduleEnd,
+  mondayOf,
+  nextSundayOnOrAfter,
+  speakingPoolCount,
+  sundayOf,
+} from '../../utils/weekend-range-model';
 import { displayPublisherName } from '../../utils/publisher-name';
 import { addDaysIso, buildDefaultWeekParts, createEmptyWeek } from './meeting-defaults';
 
 export type SchedulerMode = 'midweek' | 'weekend';
 import { MeetingWeekEditorComponent } from './meeting-week-editor.component';
 import { MeetingWeekWorkbookComponent } from './meeting-week-workbook.component';
+import { WeekendRangeSheetComponent } from './weekend-range-sheet.component';
 
 const CONGREGATION_NAME = 'Bolaoen Congregation';
 const IMPORT_LANGUAGE_STORAGE_KEY = 'meeting-import-language';
 const SUMMARY_VIEW_STORAGE_KEY = 'meeting-summary-view';
+const WEEKEND_VIEW_STORAGE_KEY = 'weekend-schedule-view';
 
 /** Output kinds routed through the generation confirmation modal. */
 type GenerateKind = 'print' | 'png' | 'pdf' | 'slips';
@@ -74,7 +85,13 @@ const IMPORT_STEP_TEMPLATE: ReadonlyArray<Pick<ImportProgressStep, 'label' | 'de
 @Component({
   selector: 'app-meeting-schedule',
   standalone: true,
-  imports: [CommonModule, FormsModule, MeetingWeekEditorComponent, MeetingWeekWorkbookComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    MeetingWeekEditorComponent,
+    MeetingWeekWorkbookComponent,
+    WeekendRangeSheetComponent,
+  ],
   templateUrl: './meeting-schedule.component.html',
   styleUrl: './meeting-schedule.component.css',
 })
@@ -94,10 +111,40 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
   protected outlines: TalkOutline[] = [];
   protected outlineUsage = new Map<number, string>();
 
-  /** Last month of the weekend export range (`yyyy-mm`); the start is the selected month. */
+  /** Last month of the weekend export range (`yyyy-mm`); the start is the selected month.
+   * Only used as a fallback when no rotation schedule exists yet. */
   protected rangeEndMonth = MeetingScheduleComponent.currentMonth();
   /** Weeks fetched for the pending weekend export, so the modal can show real counts. */
   private rangeWeeks: MeetingWeek[] = [];
+
+  /** Weekend rotation cycles (newest first) and the one the page works on. */
+  protected schedules: WeekendSchedule[] = [];
+  protected activeSchedule: WeekendSchedule | null = null;
+
+  /** Editable sheet state: draft rows (one per Sunday of the cycle) and their
+   * saved baselines (JSON, parts excluded) for dirty tracking. */
+  protected sheetWeeks: MeetingWeek[] = [];
+  private sheetBaseline = new Map<string, string>();
+  protected sheetRangeLabel = '';
+  protected sheetLoading = false;
+  protected sheetSaving = false;
+  /** End-date change the rotation math applied (event weeks extend, restored
+   * talk weeks shrink); saved with the sheet, null when in sync with the cycle. */
+  protected pendingEndSunday: string | null = null;
+
+  /** New Schedule dialog state. */
+  protected newScheduleDraft: {
+    start_sunday: string;
+    end_sunday: string;
+    range_label: string;
+    poolCount: number;
+    elders: number;
+    ministerialServants: number;
+  } | null = null;
+  protected newScheduleSaving = false;
+  protected newScheduleLoading = false;
+
+  protected readonly congregationName = CONGREGATION_NAME;
 
   /** Lookback for rotation hints and the per-publisher history modal. */
   private static readonly HISTORY_WINDOW_MONTHS = 12;
@@ -178,6 +225,34 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** Weekend page style: the editable rotation sheet or the month cards; persisted per device. */
+  protected weekendView: 'sheet' | 'cards' = MeetingScheduleComponent.storedWeekendView();
+
+  private static storedWeekendView(): 'sheet' | 'cards' {
+    try {
+      const stored = localStorage.getItem(WEEKEND_VIEW_STORAGE_KEY);
+      if (stored === 'sheet' || stored === 'cards') return stored;
+    } catch {
+      /* storage unavailable */
+    }
+    return 'sheet';
+  }
+
+  /** Switching views never discards sheet drafts; they stay in memory until saved or reloaded. */
+  protected setWeekendView(view: 'sheet' | 'cards'): void {
+    if (view === this.weekendView) return;
+    this.weekendView = view;
+    try {
+      localStorage.setItem(WEEKEND_VIEW_STORAGE_KEY, view);
+    } catch {
+      /* storage unavailable */
+    }
+    if (view === 'sheet' && this.activeSchedule && this.sheetWeeks.length === 0) {
+      void this.loadSheet();
+    }
+    this.cdr.detectChanges();
+  }
+
   constructor(
     protected readonly supabase: SupabaseService,
     private readonly meetingSchedule: MeetingScheduleService,
@@ -231,6 +306,10 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
   /** Escape closes the topmost open modal, unless its action is in flight. */
   @HostListener('document:keydown.escape')
   protected closeTopModal(): void {
+    if (this.newScheduleDraft) {
+      if (!this.newScheduleSaving) this.onCancelNewSchedule();
+      return;
+    }
     if (this.pendingDelete) {
       if (!this.deletingId) this.onCancelDelete();
       return;
@@ -335,9 +414,20 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
     this.rangeEndMonth = value < this.selectedMonth ? this.selectedMonth : value;
   }
 
-  /** Range label shown in the app UI (English). */
+  /** Range label shown in the app UI: the cycle's stored free text, else computed. */
   protected get rangeLabel(): string {
+    const schedule = this.activeSchedule;
+    if (schedule) return schedule.range_label?.trim() || this.scheduleLabel(schedule, 'en');
     return weekendRangeLabel(this.selectedMonth, this.rangeEndMonth, 'en');
+  }
+
+  /** Label printed on the exported sheet, in the schedule language. */
+  private get exportRangeLabel(): string {
+    const schedule = this.activeSchedule;
+    if (schedule) {
+      return schedule.range_label?.trim() || this.scheduleLabel(schedule, this.importLanguage);
+    }
+    return weekendRangeLabel(this.selectedMonth, this.rangeEndMonth, this.importLanguage);
   }
 
   private shiftMonth(month: string, delta: number): string {
@@ -371,7 +461,13 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
       this.history = history.lastAssigned;
       this.historyDetail = history.byPublisher;
 
-      if (this.mode === 'weekend') await this.loadOutlines();
+      if (this.mode === 'weekend') {
+        await this.loadOutlines();
+        await this.loadWeekendSchedules();
+        // Keep unsaved sheet edits when navigating months; the sheet does not
+        // depend on the selected month anyway.
+        if (this.weekendView === 'sheet' && this.sheetDirtyCount === 0) await this.loadSheet();
+      }
     } catch (err) {
       this.weeks = [];
       this.toast.showError(err instanceof Error ? err.message : 'Failed to load the schedule.');
@@ -394,6 +490,344 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
       // The picker degrades to free text when the library cannot load.
       this.outlines = [];
       this.outlineUsage = new Map();
+    }
+  }
+
+  // ---------- Weekend rotation schedule + editable sheet ----------
+
+  private static todayIso(): string {
+    const now = new Date();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${now.getFullYear()}-${m}-${d}`;
+  }
+
+  /** Cycles are best-effort: without the table (or offline) the page degrades
+   * to the legacy month-range export. */
+  private async loadWeekendSchedules(): Promise<void> {
+    try {
+      this.schedules = await this.meetingSchedule.getWeekendSchedules();
+      this.activeSchedule = activeWeekendSchedule(
+        this.schedules,
+        MeetingScheduleComponent.todayIso()
+      );
+    } catch {
+      this.schedules = [];
+      this.activeSchedule = null;
+    }
+  }
+
+  /** Computed month-range label for a cycle, used when no free text is stored. */
+  private scheduleLabel(schedule: WeekendSchedule, language: ImportLanguage = 'ilo'): string {
+    return weekendRangeLabel(
+      schedule.start_sunday.slice(0, 7),
+      schedule.end_sunday.slice(0, 7),
+      language
+    );
+  }
+
+  /** Draft row per Sunday of the active cycle: saved weeks cloned, gaps backfilled. */
+  private async loadSheet(): Promise<void> {
+    const schedule = this.activeSchedule;
+    if (!schedule) {
+      this.sheetWeeks = [];
+      this.sheetBaseline = new Map();
+      this.sheetRangeLabel = '';
+      this.pendingEndSunday = null;
+      return;
+    }
+
+    this.sheetLoading = true;
+    this.cdr.detectChanges();
+    try {
+      const saved = await this.meetingSchedule.getWeeksInRange(
+        mondayOf(schedule.start_sunday),
+        mondayOf(schedule.end_sunday)
+      );
+      const bySunday = new Map(saved.map((w) => [sundayOf(w), w]));
+
+      const rows: MeetingWeek[] = [];
+      for (
+        let sunday = schedule.start_sunday;
+        sunday <= schedule.end_sunday;
+        sunday = addDaysIso(sunday, 7)
+      ) {
+        const existing = bySunday.get(sunday);
+        rows.push(existing ? structuredClone(existing) : this.emptySheetRow(sunday));
+      }
+
+      this.sheetWeeks = rows;
+      this.sheetBaseline = new Map(rows.map((w) => [w.week_of, this.serializeSheetRow(w)]));
+      this.sheetRangeLabel = schedule.range_label?.trim() || this.scheduleLabel(schedule);
+      this.pendingEndSunday = null;
+      // Event weeks saved from the cards view (or midweek) count immediately:
+      // the sheet opens already extended so every speaker keeps a Sunday.
+      this.applyRotationEnd();
+    } catch (err) {
+      this.toast.showError(err instanceof Error ? err.message : 'Failed to load the schedule.');
+    } finally {
+      this.sheetLoading = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  /** Weekend rows never fabricate a midweek program (same rule as onAddWeek). */
+  private emptySheetRow(sunday: string): MeetingWeek {
+    const week = createEmptyWeek(mondayOf(sunday));
+    week.parts = [];
+    return week;
+  }
+
+  /** Dirty tracking compares week-level columns only; parts are never saved from here. */
+  private serializeSheetRow(week: MeetingWeek): string {
+    const { parts: _parts, ...row } = week;
+    return JSON.stringify(row);
+  }
+
+  protected get sheetDirtyWeeks(): MeetingWeek[] {
+    return this.sheetWeeks.filter(
+      (w) => this.sheetBaseline.get(w.week_of) !== this.serializeSheetRow(w)
+    );
+  }
+
+  protected get sheetDirtyCount(): number {
+    return this.sheetDirtyWeeks.length;
+  }
+
+  /** True when the header label or an accepted end-date change awaits saving. */
+  protected get sheetScheduleDirty(): boolean {
+    const schedule = this.activeSchedule;
+    if (!schedule) return false;
+    if (this.pendingEndSunday !== null) return true;
+    const current = schedule.range_label?.trim() || this.scheduleLabel(schedule);
+    return this.sheetRangeLabel.trim() !== current;
+  }
+
+  protected get sheetHasChanges(): boolean {
+    return this.sheetDirtyCount > 0 || this.sheetScheduleDirty;
+  }
+
+  /** The active cycle's last Sunday has passed; time to start the next one. */
+  protected get scheduleEnded(): boolean {
+    return !!this.activeSchedule &&
+      this.activeSchedule.end_sunday < MeetingScheduleComponent.todayIso();
+  }
+
+  protected formatSunday(iso: string | null): string {
+    if (!iso) return '';
+    const d = new Date(`${iso}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  }
+
+  /**
+   * A row's kind changed (e.g. a Sunday became an assembly week). The sheet
+   * resizes right away: event weeks push the end out, restoring a public talk
+   * pulls it back. Everything stays editable, so no confirmation is needed;
+   * the new end date is persisted with Save.
+   */
+  protected onSheetRowKindChange(): void {
+    this.applyRotationEnd();
+    this.cdr.detectChanges();
+  }
+
+  /** Re-derives the cycle end from the drafts; never drops a row with unsaved edits. */
+  private applyRotationEnd(): void {
+    const schedule = this.activeSchedule;
+    if (!schedule) return;
+    const bySunday = new Map(this.sheetWeeks.map((w) => [sundayOf(w), w]));
+    let end = computeScheduleEnd(schedule.start_sunday, schedule.speaker_count, bySunday);
+    for (const week of this.sheetDirtyWeeks) {
+      const sunday = sundayOf(week);
+      if (sunday > end) end = sunday;
+    }
+    this.pendingEndSunday = end === schedule.end_sunday ? null : end;
+    this.rebuildSheetRows(end);
+  }
+
+  /** Re-spans the sheet rows to a new end Sunday, keeping every existing draft. */
+  private rebuildSheetRows(endSunday: string): void {
+    const schedule = this.activeSchedule;
+    if (!schedule) return;
+    const byWeekOf = new Map(this.sheetWeeks.map((w) => [w.week_of, w]));
+    const rows: MeetingWeek[] = [];
+    for (
+      let sunday = schedule.start_sunday;
+      sunday <= endSunday;
+      sunday = addDaysIso(sunday, 7)
+    ) {
+      const monday = mondayOf(sunday);
+      const existing = byWeekOf.get(monday);
+      if (existing) {
+        rows.push(existing);
+      } else {
+        const row = this.emptySheetRow(sunday);
+        this.sheetBaseline.set(monday, this.serializeSheetRow(row));
+        rows.push(row);
+      }
+    }
+    this.sheetWeeks = rows;
+  }
+
+  /** Saves every dirty row (week columns only), then the label/end changes, in one go. */
+  protected async onSaveSheet(): Promise<void> {
+    if (this.sheetSaving || !this.sheetHasChanges) return;
+
+    this.sheetSaving = true;
+    this.toast.dismiss();
+    this.cdr.detectChanges();
+
+    let savedCount = 0;
+    try {
+      for (const week of this.sheetDirtyWeeks) {
+        const saved = await this.meetingSchedule.saveWeek(week, { skipParts: true });
+        const index = this.sheetWeeks.findIndex((w) => w.week_of === saved.week_of);
+        if (index >= 0) this.sheetWeeks[index] = saved;
+        this.sheetBaseline.set(saved.week_of, this.serializeSheetRow(saved));
+        const others = this.weeks.filter((w) => w.week_of !== saved.week_of);
+        this.weeks = [...others, saved].sort((a, b) => a.week_of.localeCompare(b.week_of));
+        savedCount++;
+      }
+
+      const schedule = this.activeSchedule;
+      if (schedule && this.sheetScheduleDirty) {
+        const updated = await this.meetingSchedule.saveWeekendSchedule({
+          ...schedule,
+          end_sunday: this.pendingEndSunday ?? schedule.end_sunday,
+          range_label: this.sheetRangeLabel.trim() || null,
+        });
+        this.activeSchedule = updated;
+        this.schedules = [
+          updated,
+          ...this.schedules.filter((s) => s.start_sunday !== updated.start_sunday),
+        ].sort((a, b) => b.start_sunday.localeCompare(a.start_sunday));
+        this.pendingEndSunday = null;
+      }
+
+      this.toast.showSuccess(
+        savedCount > 0
+          ? `Saved ${savedCount} week${savedCount === 1 ? '' : 's'}.`
+          : 'Schedule updated.'
+      );
+      await this.refreshHistory();
+      await this.loadOutlines();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save the schedule.';
+      this.toast.showError(
+        savedCount > 0 ? `${message} ${savedCount} week(s) were saved before the error.` : message
+      );
+    } finally {
+      this.sheetSaving = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  /** Throws away unsaved sheet edits and reloads from the saved rows. */
+  protected async onDiscardSheet(): Promise<void> {
+    if (this.sheetSaving) return;
+    await this.loadSheet();
+  }
+
+  // ---------- New Schedule dialog ----------
+
+  protected get activeElderCount(): number {
+    return this.publishers.filter((p) => !p.inactive && p.elder).length;
+  }
+
+  protected get activeMsCount(): number {
+    return this.publishers.filter((p) => !p.inactive && p.ministerial_servant && !p.elder).length;
+  }
+
+  protected async openNewSchedule(): Promise<void> {
+    if (this.newScheduleLoading) return;
+    const poolCount = speakingPoolCount(this.publishers);
+    if (poolCount === 0) {
+      this.toast.showError(
+        'No active elders or ministerial servants in the publisher list; the rotation length cannot be computed.'
+      );
+      return;
+    }
+    const latest = this.schedules[0] ?? null;
+    const start = latest
+      ? addDaysIso(latest.end_sunday, 7)
+      : nextSundayOnOrAfter(MeetingScheduleComponent.todayIso());
+    await this.prepareNewScheduleDraft(start);
+  }
+
+  /**
+   * Proposes the cycle window for a start Sunday: one speaking Sunday per
+   * active elder/MS, with already-saved event weeks (assemblies, conventions,
+   * memorials) extending the end. The label is prefilled but free text.
+   */
+  private async prepareNewScheduleDraft(startSunday: string): Promise<void> {
+    this.newScheduleLoading = true;
+    this.cdr.detectChanges();
+    try {
+      const poolCount = speakingPoolCount(this.publishers);
+      let weekBySunday = new Map<string, MeetingWeek>();
+      try {
+        const lookaheadEnd = addDaysIso(startSunday, (poolCount + 30) * 7);
+        const weeks = await this.meetingSchedule.getWeeksInRange(
+          mondayOf(startSunday),
+          mondayOf(lookaheadEnd)
+        );
+        weekBySunday = new Map(weeks.map((w) => [sundayOf(w), w]));
+      } catch {
+        // Best-effort: the proposal simply ignores pre-marked event weeks.
+      }
+      const end = computeScheduleEnd(startSunday, poolCount, weekBySunday);
+      this.newScheduleDraft = {
+        start_sunday: startSunday,
+        end_sunday: end,
+        range_label: weekendRangeLabel(startSunday.slice(0, 7), end.slice(0, 7), 'ilo'),
+        poolCount,
+        elders: this.activeElderCount,
+        ministerialServants: this.activeMsCount,
+      };
+    } finally {
+      this.newScheduleLoading = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  protected async onNewScheduleStartChange(value: string): Promise<void> {
+    if (!value || !this.newScheduleDraft) return;
+    await this.prepareNewScheduleDraft(nextSundayOnOrAfter(value));
+  }
+
+  protected onCancelNewSchedule(): void {
+    if (this.newScheduleSaving) return;
+    this.newScheduleDraft = null;
+    this.cdr.detectChanges();
+  }
+
+  protected async onConfirmNewSchedule(): Promise<void> {
+    const draft = this.newScheduleDraft;
+    if (!draft || this.newScheduleSaving) return;
+
+    this.newScheduleSaving = true;
+    this.cdr.detectChanges();
+    try {
+      const saved = await this.meetingSchedule.saveWeekendSchedule({
+        start_sunday: draft.start_sunday,
+        end_sunday: draft.end_sunday,
+        range_label: draft.range_label.trim() || null,
+        speaker_count: draft.poolCount,
+      });
+      this.schedules = [
+        saved,
+        ...this.schedules.filter((s) => s.start_sunday !== saved.start_sunday),
+      ].sort((a, b) => b.start_sunday.localeCompare(a.start_sunday));
+      this.activeSchedule = saved;
+      this.newScheduleDraft = null;
+      this.toast.showSuccess(`Schedule created: ${saved.range_label || this.scheduleLabel(saved)}.`);
+      this.setWeekendView('sheet');
+      await this.loadSheet();
+    } catch (err) {
+      this.toast.showError(err instanceof Error ? err.message : 'Failed to create the schedule.');
+    } finally {
+      this.newScheduleSaving = false;
+      this.cdr.detectChanges();
     }
   }
 
@@ -884,8 +1318,20 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  /** Saved weeks whose Sunday falls inside [selectedMonth, rangeEndMonth]. */
+  /** Saved weeks of the active rotation cycle, or of [selectedMonth, rangeEndMonth] without one. */
   private async fetchRangeWeeks(): Promise<MeetingWeek[]> {
+    const schedule = this.activeSchedule;
+    if (schedule) {
+      const weeks = await this.meetingSchedule.getWeeksInRange(
+        mondayOf(schedule.start_sunday),
+        mondayOf(schedule.end_sunday)
+      );
+      return weeks.filter((w) => {
+        const sunday = sundayOf(w);
+        return sunday >= schedule.start_sunday && sunday <= schedule.end_sunday;
+      });
+    }
+
     const [startYear, startMonth] = this.selectedMonth.split('-').map(Number);
     const [endYear, endMonth] = this.rangeEndMonth.split('-').map(Number);
     // Widen by a week on both sides: a Sunday can belong to a week_of in the
@@ -895,7 +1341,6 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
     const end = `${endYear}-${String(endMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
     const weeks = await this.meetingSchedule.getWeeksInRange(addDaysIso(start, -7), end);
 
-    const sundayOf = (w: MeetingWeek) => w.weekend_date ?? addDaysIso(w.week_of, 6);
     return weeks.filter((w) => {
       const sunday = sundayOf(w);
       return sunday >= start && sunday <= end;
@@ -929,22 +1374,38 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
 
   protected async onOpenPreview(): Promise<void> {
     if (this.generating) return;
-    const weeks = this.monthWeeks;
-    if (weeks.length === 0) {
-      this.toast.showError('No saved weeks in this month to preview yet.');
-      return;
-    }
 
     this.previewLoading = true;
     this.cdr.detectChanges();
     try {
-      const html = buildMonthScheduleDocument(
-        weeks,
-        CONGREGATION_NAME,
-        this.monthLabel,
-        this.mode,
-        this.importLanguage
-      );
+      let html: string;
+      if (this.mode === 'weekend') {
+        // Preview exactly what the export produces: the range table, not the month sheet.
+        this.rangeWeeks = await this.fetchRangeWeeks();
+        if (this.rangeWeeks.length === 0) {
+          this.toast.showError(`No saved weeks in ${this.rangeLabel} to preview yet.`);
+          return;
+        }
+        html = buildWeekendRangeDocument(
+          this.rangeWeeks,
+          CONGREGATION_NAME,
+          this.exportRangeLabel,
+          this.importLanguage
+        );
+      } else {
+        const weeks = this.monthWeeks;
+        if (weeks.length === 0) {
+          this.toast.showError('No saved weeks in this month to preview yet.');
+          return;
+        }
+        html = buildMonthScheduleDocument(
+          weeks,
+          CONGREGATION_NAME,
+          this.monthLabel,
+          this.mode,
+          this.importLanguage
+        );
+      }
       this.previewPages = await renderHtmlToPngDataUrls(html);
     } catch (err) {
       this.toast.showError(
@@ -988,15 +1449,18 @@ export class MeetingScheduleComponent implements OnInit, OnDestroy {
   private buildExportDocument(): { html: string; scopeLabel: string; fileName: string } | null {
     if (this.mode === 'weekend') {
       if (this.rangeWeeks.length === 0) return null;
+      const schedule = this.activeSchedule;
       return {
         html: buildWeekendRangeDocument(
           this.rangeWeeks,
           CONGREGATION_NAME,
-          weekendRangeLabel(this.selectedMonth, this.rangeEndMonth, this.importLanguage),
+          this.exportRangeLabel,
           this.importLanguage
         ),
         scopeLabel: this.rangeLabel,
-        fileName: `weekend-schedule-${this.selectedMonth}-to-${this.rangeEndMonth}`,
+        fileName: schedule
+          ? `weekend-schedule-${schedule.start_sunday}-to-${schedule.end_sunday}`
+          : `weekend-schedule-${this.selectedMonth}-to-${this.rangeEndMonth}`,
       };
     }
 

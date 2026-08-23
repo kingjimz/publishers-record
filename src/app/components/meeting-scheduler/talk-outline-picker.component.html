@@ -1,15 +1,39 @@
 <div class="relative">
-  <button
-    #trigger
-    type="button"
-    (click)="openPanel()"
-    class="ms-field flex items-center justify-between gap-2 text-left">
-    <span class="truncate" [class.text-slate-900]="!!theme" [class.dark:text-slate-100]="!!theme"
-      [class.text-slate-400]="!theme" [class.dark:text-slate-500]="!theme">
-      {{ displayValue || placeholder }}
-    </span>
-    <i class="bi bi-chevron-down text-slate-400 text-xs shrink-0 transition-transform duration-150" [class.rotate-180]="open"></i>
-  </button>
+  @if (variant === 'inline') {
+    @if (readonly) {
+      <!-- Saved sheet: the theme as printed text. -->
+      <span class="inline-block w-full min-w-0 text-left">
+        @if (displayValue) {
+          {{ displayValue }}
+        } @else {
+          &nbsp;
+        }
+      </span>
+    } @else {
+      <!-- Sheet view: borderless trigger that reads like printed text. -->
+      <button
+        #trigger
+        type="button"
+        (click)="openPanel()"
+        class="w-full min-w-0 cursor-pointer rounded-sm text-left align-baseline hover:bg-sky-50 focus-visible:bg-sky-50 focus-visible:outline-none">
+        <span [class.text-slate-400]="!theme" [class.italic]="!theme">
+          {{ displayValue || placeholder }}
+        </span>
+      </button>
+    }
+  } @else {
+    <button
+      #trigger
+      type="button"
+      (click)="openPanel()"
+      class="ms-field flex items-center justify-between gap-2 text-left">
+      <span class="truncate" [class.text-slate-900]="!!theme" [class.dark:text-slate-100]="!!theme"
+        [class.text-slate-400]="!theme" [class.dark:text-slate-500]="!theme">
+        {{ displayValue || placeholder }}
+      </span>
+      <i class="bi bi-chevron-down text-slate-400 text-xs shrink-0 transition-transform duration-150" [class.rotate-180]="open"></i>
+    </button>
+  }
 
   @if (open) {
     <!-- Below the sticky header (z-50) so scrolling never hides the header behind the dropdown. -->

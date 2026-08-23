@@ -1,0 +1,151 @@
+<div class="ws-scroll">
+  <div class="ws-sheet">
+    <p class="ws-cong">{{ congregationName }}</p>
+    <p class="ws-title">{{ labels.title }}</p>
+    <p class="ws-range-label">
+      @if (readonly) {
+        ({{ rangeLabel }})
+      } @else {
+        <span>(</span><input
+          type="text"
+          class="ws-inline ws-range-input"
+          [ngModel]="rangeLabel"
+          (ngModelChange)="onRangeLabelInput($event)"
+          name="wsRangeLabel"
+          placeholder="Agosto – Disiembre 2026"
+          title="Free-text range shown on the printed schedule" /><span>)</span>
+      }
+    </p>
+
+    <table class="ws-range">
+      <tr class="ws-head">
+        <th colspan="2">{{ labels.date }}</th>
+        <th class="ws-speaker-col">{{ labels.speaker }}</th>
+        <th>{{ labels.chairman }}</th>
+        <th class="ws-theme-col">{{ labels.theme }}</th>
+        <th>{{ labels.reader }}</th>
+      </tr>
+
+      @for (group of groups; track group.monthName + group.year) {
+        @for (vm of group.rows; track vm.sunday) {
+          <tr>
+            @if ($first) {
+              <td class="ws-band" [attr.rowspan]="group.rows.length" [style.background]="bandColor">
+                <div class="ws-vert">{{ group.monthName }}</div>
+              </td>
+            }
+            <td class="ws-day">
+              <span class="ws-day-num">{{ vm.day }}</span>
+              @if (!readonly) {
+                <select
+                  class="ws-kind"
+                  [ngModel]="rowKindValue(vm.week)"
+                  (ngModelChange)="onRowKind(vm.week, $event)"
+                  name="wsKind-{{ vm.sunday }}"
+                  title="Week type">
+                  @for (option of rowKindOptions; track option.value) {
+                    <option [ngValue]="option.value">{{ option.label }}</option>
+                  }
+                </select>
+              }
+            </td>
+
+            @if (vm.kind === 'event') {
+              <td colspan="4" class="ws-event">
+                @if (readonly) {
+                  {{ vm.eventLabel }}
+                } @else {
+                  <input
+                    type="text"
+                    class="ws-inline ws-event-input"
+                    [(ngModel)]="vm.week.notes"
+                    name="wsEventLabel-{{ vm.sunday }}"
+                    [placeholder]="vm.eventLabel" />
+                }
+              </td>
+            } @else {
+              <!-- Ispiker -->
+              <td class="ws-speaker">
+                @if (vm.kind === 'symposium') {
+                  <div class="ws-note">{{ labels.symposium }}</div>
+                }
+                <app-assignee-picker
+                  variant="inline" [readonly]="readonly" placeholder="Assign"
+                  [publishers]="publishers" [history]="history" [historyDetail]="historyDetail"
+                  [historyKey]="'public_talk_speaker_name'" [weekOf]="vm.week.week_of"
+                  [eligibility]="roleEligibility('public_talk_speaker_name')"
+                  [allowFreeText]="true"
+                  [weekAssignments]="assignmentsFor(vm.week)" [slotLabel]="'Speaker'"
+                  [value]="vm.week.public_talk_speaker_name"
+                  (valueChange)="vm.week.public_talk_speaker_name = $event" />
+                @if (vm.kind === 'symposium') {
+                  <app-assignee-picker
+                    variant="inline" [readonly]="readonly" placeholder="Assign 2nd speaker"
+                    [publishers]="publishers" [history]="history" [historyDetail]="historyDetail"
+                    [historyKey]="'public_talk_speaker2_name'" [weekOf]="vm.week.week_of"
+                    [eligibility]="roleEligibility('public_talk_speaker2_name')"
+                    [allowFreeText]="true"
+                    [weekAssignments]="assignmentsFor(vm.week)" [slotLabel]="'Speaker'"
+                    [value]="vm.week.public_talk_speaker2_name"
+                    (valueChange)="vm.week.public_talk_speaker2_name = $event" />
+                }
+                @if (vm.kind !== 'symposium') {
+                  @if (readonly) {
+                    @if (vm.week.speaker_congregation) {
+                      <div class="ws-sub">{{ vm.week.speaker_congregation }}</div>
+                    }
+                  } @else {
+                    <input
+                      type="text"
+                      class="ws-inline ws-sub ws-cong-input"
+                      [(ngModel)]="vm.week.speaker_congregation"
+                      name="wsCongregation-{{ vm.sunday }}"
+                      placeholder="Congregation" />
+                  }
+                }
+                @if (vm.kind === 'co_visit') {
+                  <div class="ws-note">(C.O's Visit)</div>
+                } @else if (vm.kind === 'special_talk') {
+                  <div class="ws-note">(Special Talk)</div>
+                }
+              </td>
+
+              <!-- Tserman -->
+              <td>
+                <app-assignee-picker
+                  variant="inline" [readonly]="readonly" placeholder="Assign"
+                  [publishers]="publishers" [history]="history" [historyDetail]="historyDetail"
+                  [historyKey]="'weekend_chairman_name'" [weekOf]="vm.week.week_of"
+                  [eligibility]="roleEligibility('weekend_chairman_name')"
+                  [weekAssignments]="assignmentsFor(vm.week)" [slotLabel]="'Chairman'"
+                  [value]="vm.week.weekend_chairman_name"
+                  (valueChange)="vm.week.weekend_chairman_name = $event" />
+              </td>
+
+              <!-- Tema -->
+              <td class="ws-theme">
+                <app-talk-outline-picker
+                  variant="inline" [readonly]="readonly" placeholder="Select theme"
+                  [outlines]="outlines" [usage]="outlineUsage"
+                  [talkNumber]="vm.week.public_talk_number" [theme]="vm.week.public_talk_theme"
+                  (picked)="onThemePicked(vm.week, $event)" />
+              </td>
+
+              <!-- Parabasa iti Parapo -->
+              <td>
+                <app-assignee-picker
+                  variant="inline" [readonly]="readonly" placeholder="Assign"
+                  [publishers]="publishers" [history]="history" [historyDetail]="historyDetail"
+                  [historyKey]="'wt_reader_name'" [weekOf]="vm.week.week_of"
+                  [eligibility]="roleEligibility('wt_reader_name')"
+                  [weekAssignments]="assignmentsFor(vm.week)" [slotLabel]="'Watchtower Reader'"
+                  [value]="vm.week.wt_reader_name"
+                  (valueChange)="vm.week.wt_reader_name = $event" />
+              </td>
+            }
+          </tr>
+        }
+      }
+    </table>
+  </div>
+</div>

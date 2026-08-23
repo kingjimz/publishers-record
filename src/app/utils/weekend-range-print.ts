@@ -1,6 +1,12 @@
 import { MeetingWeek } from '../services/meeting-schedule.service';
-import { addDaysIso } from '../components/meeting-scheduler/meeting-defaults';
 import { ScheduleLanguage, esc, escName } from './meeting-schedule-print';
+import {
+  WeekendRangeLabels,
+  WeekendRowVM,
+  buildWeekendRowVM,
+  groupWeekendRowsByMonth,
+  weekendRangeLabels,
+} from './weekend-range-model';
 
 /**
  * Weekend public talk schedule as one compact table covering a month range
@@ -9,106 +15,33 @@ import { ScheduleLanguage, esc, escName } from './meeting-schedule-print';
  * Parapo, with special rows for assemblies, conventions, C.O. visits,
  * special talks, and symposiums.
  *
- * The markup is XML-safe (numeric entities only) so it renders through the
- * SVG-foreignObject PNG pipeline in html-to-png.ts.
+ * All rendering decisions (labels, row classification, month grouping) live
+ * in weekend-range-model.ts, shared with the on-screen editable sheet; this
+ * file only turns that model into markup. The markup is XML-safe (numeric
+ * entities only) so it renders through the SVG-foreignObject PNG pipeline in
+ * html-to-png.ts.
  */
 
-interface RangeLabels {
-  title: string;
-  date: string;
-  speaker: string;
-  chairman: string;
-  theme: string;
-  reader: string;
-  symposium: string;
-  months: string[];
-}
-
-const RANGE_LABELS: Record<ScheduleLanguage, RangeLabels> = {
-  en: {
-    title: 'Public Talk Schedule',
-    date: 'Date',
-    speaker: 'Speaker',
-    chairman: 'Chairman',
-    theme: 'Theme',
-    reader: 'Paragraph Reader (Watchtower)',
-    symposium: 'Symposium:',
-    months: [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December',
-    ],
-  },
-  ilo: {
-    title: 'Eskedyul Para iti Palawag Publiko',
-    date: 'Petsa',
-    speaker: 'Ispiker',
-    chairman: 'Tserman',
-    theme: 'Tema',
-    reader: 'Parabasa iti Parapo (Pagwanawanan)',
-    symposium: 'Simposium:',
-    months: [
-      'Enero', 'Pebrero', 'Marso', 'Abril', 'Mayo', 'Hunio',
-      'Hulio', 'Agosto', 'Setiembre', 'Oktubre', 'Nobiembre', 'Disiembre',
-    ],
-  },
-};
-
-/** Full-width event labels, kept in English like the congregation's sheet. */
-const EVENT_LABELS: Record<string, string> = {
-  assembly: 'Circuit Assembly Week',
-  convention: 'Regional Convention Week',
-  memorial: 'Memorial',
-  no_meeting: 'No Meeting',
-};
+export { weekendRangeLabel } from './weekend-range-model';
 
 /** Rough page budget; a month group never splits across pages. */
 const MAX_ROWS_PER_PAGE = 24;
 
-interface RangeRow {
-  monthIndex: number;
-  year: number;
-  /** All cells after the month band, as `<td>` markup. */
-  cells: string;
+function themeCell(vm: WeekendRowVM): string {
+  return esc(vm.themeText) || '&#160;';
 }
 
-/** "Agosto – Disiembre 2026" (or "Nobiembre 2026 – Marso 2027" across years). */
-export function weekendRangeLabel(
-  startMonth: string,
-  endMonth: string,
-  language: ScheduleLanguage = 'ilo'
-): string {
-  const labels = RANGE_LABELS[language] ?? RANGE_LABELS.ilo;
-  const [startYear, startM] = startMonth.split('-').map(Number);
-  const [endYear, endM] = endMonth.split('-').map(Number);
-  const start = labels.months[startM - 1];
-  const end = labels.months[endM - 1];
-  if (startYear !== endYear) return `${start} ${startYear} – ${end} ${endYear}`;
-  if (startM === endM) return `${start} ${startYear}`;
-  return `${start} – ${end} ${startYear}`;
-}
-
-/** Sunday the weekend meeting is held (falls back to week_of + 6). */
-function sundayOf(week: MeetingWeek): string {
-  return week.weekend_date ?? addDaysIso(week.week_of, 6);
-}
-
-function themeCell(week: MeetingWeek): string {
-  if (week.public_talk_number && week.public_talk_theme) {
-    return `${week.public_talk_number}. ${esc(week.public_talk_theme)}`;
-  }
-  return esc(week.public_talk_theme) || '&#160;';
-}
-
-function speakerCell(week: MeetingWeek, labels: RangeLabels): string {
+function speakerCell(vm: WeekendRowVM, labels: WeekendRangeLabels): string {
+  const week = vm.week;
   const congregation = week.speaker_congregation
     ? `<div class="sub">${esc(week.speaker_congregation)}</div>`
     : '';
 
-  if (week.week_type === 'co_visit') {
+  if (vm.kind === 'co_visit') {
     const name = escName(week.public_talk_speaker_name);
     return `${name ? `${name}${congregation}` : ''}<div class="note">(C.O's Visit)</div>`;
   }
-  if (week.weekend_event === 'symposium') {
+  if (vm.kind === 'symposium') {
     const names = [week.public_talk_speaker_name, week.public_talk_speaker2_name]
       .map((n) => escName(n))
       .filter(Boolean)
@@ -117,46 +50,26 @@ function speakerCell(week: MeetingWeek, labels: RangeLabels): string {
   }
 
   const name = escName(week.public_talk_speaker_name) || '&#160;';
-  const specialNote =
-    week.weekend_event === 'special_talk' ? '<div class="note">(Special Talk)</div>' : '';
+  const specialNote = vm.kind === 'special_talk' ? '<div class="note">(Special Talk)</div>' : '';
   return `${name}${congregation}${specialNote}`;
 }
 
-function buildRow(week: MeetingWeek, labels: RangeLabels): RangeRow {
-  const sunday = sundayOf(week);
-  const [year, month, day] = sunday.split('-').map(Number);
-  const dayCell = `<td class="day">${day}</td>`;
+/** All cells after the month band, as `<td>` markup. */
+function rowCells(vm: WeekendRowVM, labels: WeekendRangeLabels): string {
+  const dayCell = `<td class="day">${vm.day}</td>`;
 
-  const eventKey =
-    week.weekend_event === 'assembly' || week.weekend_event === 'convention'
-      ? week.weekend_event
-      : week.week_type === 'memorial'
-        ? 'memorial'
-        : week.week_type === 'no_meeting'
-          ? 'no_meeting'
-          : null;
-
-  if (eventKey) {
-    const label = esc(week.notes?.trim() || EVENT_LABELS[eventKey]);
-    return {
-      monthIndex: month - 1,
-      year,
-      cells: `${dayCell}<td colspan="4" class="event">${label}</td>`,
-    };
+  if (vm.kind === 'event') {
+    return `${dayCell}<td colspan="4" class="event">${esc(vm.eventLabel)}</td>`;
   }
 
-  return {
-    monthIndex: month - 1,
-    year,
-    cells: `${dayCell}
-      <td>${speakerCell(week, labels)}</td>
-      <td>${escName(week.weekend_chairman_name) || '&#160;'}</td>
-      <td class="theme">${themeCell(week)}</td>
-      <td>${escName(week.wt_reader_name) || '&#160;'}</td>`,
-  };
+  return `${dayCell}
+      <td>${speakerCell(vm, labels)}</td>
+      <td>${escName(vm.week.weekend_chairman_name) || '&#160;'}</td>
+      <td class="theme">${themeCell(vm)}</td>
+      <td>${escName(vm.week.wt_reader_name) || '&#160;'}</td>`;
 }
 
-function headerRow(labels: RangeLabels): string {
+function headerRow(labels: WeekendRangeLabels): string {
   return `<tr class="head">
     <th colspan="2">${esc(labels.date)}</th>
     <th>${esc(labels.speaker)}</th>
@@ -167,14 +80,14 @@ function headerRow(labels: RangeLabels): string {
 }
 
 /** Rows of one month become a group sharing a vertical month-band cell. */
-function monthGroupHtml(monthName: string, rows: RangeRow[]): string {
+function monthGroupHtml(monthName: string, rows: WeekendRowVM[], labels: WeekendRangeLabels): string {
   return rows
-    .map((row, i) => {
+    .map((vm, i) => {
       const band =
         i === 0
           ? `<td class="month-band" rowspan="${rows.length}"><div class="vert">${esc(monthName)}</div></td>`
           : '';
-      return `<tr>${band}${row.cells}</tr>`;
+      return `<tr>${band}${rowCells(vm, labels)}</tr>`;
     })
     .join('');
 }
@@ -185,23 +98,13 @@ export function buildWeekendRangeDocument(
   rangeLabel: string,
   language: ScheduleLanguage = 'ilo'
 ): string {
-  const labels = RANGE_LABELS[language] ?? RANGE_LABELS.ilo;
+  const labels = weekendRangeLabels(language);
 
   const rows = [...weeks]
-    .sort((a, b) => sundayOf(a).localeCompare(sundayOf(b)))
-    .map((week) => buildRow(week, labels));
+    .map((week) => buildWeekendRowVM(week))
+    .sort((a, b) => a.sunday.localeCompare(b.sunday));
 
-  // Consecutive rows in the same calendar month share one band cell.
-  const groups: { monthName: string; rows: RangeRow[] }[] = [];
-  for (const row of rows) {
-    const last = groups[groups.length - 1];
-    const monthName = labels.months[row.monthIndex];
-    if (last && last.monthName === monthName && last.rows[0].year === row.year) {
-      last.rows.push(row);
-    } else {
-      groups.push({ monthName, rows: [row] });
-    }
-  }
+  const groups = groupWeekendRowsByMonth(rows, labels);
 
   // Pack whole month groups into pages; every page repeats the table header.
   const pages: string[] = [];
@@ -217,7 +120,7 @@ export function buildWeekendRangeDocument(
   };
   for (const group of groups) {
     if (pageRowCount > 0 && pageRowCount + group.rows.length > MAX_ROWS_PER_PAGE) flush();
-    pageGroups.push(monthGroupHtml(group.monthName, group.rows));
+    pageGroups.push(monthGroupHtml(group.monthName, group.rows, labels));
     pageRowCount += group.rows.length;
   }
   flush();

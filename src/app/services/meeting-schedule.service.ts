@@ -79,6 +79,23 @@ export interface MeetingWeek {
   parts: MeetingPart[];
 }
 
+/**
+ * One weekend public talk rotation cycle: the window of Sundays the printed
+ * schedule covers plus its free-text range label. Weeks stay in meeting_weeks;
+ * speaker_count snapshots the active elder + MS pool at creation so later
+ * pool changes never silently reshape an existing schedule.
+ */
+export interface WeekendSchedule {
+  id?: string;
+  /** First meeting Sunday of the cycle (ISO date). */
+  start_sunday: string;
+  /** Last meeting Sunday of the cycle (ISO date). */
+  end_sunday: string;
+  /** Free text printed under the title; null/empty falls back to the computed label. */
+  range_label: string | null;
+  speaker_count: number;
+}
+
 /** One past assignment: the week it happened and the part title (null for week-level roles). */
 export interface AssignmentEvent {
   date: string;
@@ -211,6 +228,7 @@ export interface ImportUsage {
 
 const MEETINGS_CACHE_PREFIX = 'meeting-weeks:';
 const HISTORY_CACHE_KEY = 'meeting-assignment-history';
+const WEEKEND_SCHEDULES_CACHE_KEY = 'weekend-schedules';
 
 /** Successful imports are kept in localStorage so revisits skip the network.
  * v2: entries include the ministry-part setting. */
@@ -356,6 +374,41 @@ export class MeetingScheduleService {
 
     this.cache.invalidatePrefix(MEETINGS_CACHE_PREFIX);
     this.cache.invalidate(HISTORY_CACHE_KEY);
+  }
+
+  /** Weekend rotation cycles, newest first. Cached briefly. */
+  async getWeekendSchedules(): Promise<WeekendSchedule[]> {
+    const cached = this.cache.get<WeekendSchedule[]>(WEEKEND_SCHEDULES_CACHE_KEY);
+    if (cached !== undefined) return cached;
+
+    const { data, error } = await this.client
+      .from('weekend_schedules')
+      .select('*')
+      .order('start_sunday', { ascending: false });
+
+    if (error) throw error;
+    const schedules = (data ?? []) as WeekendSchedule[];
+    this.cache.set(WEEKEND_SCHEDULES_CACHE_KEY, schedules);
+    return schedules;
+  }
+
+  /** Upserts a rotation cycle (conflict on start_sunday). */
+  async saveWeekendSchedule(schedule: WeekendSchedule): Promise<WeekendSchedule> {
+    const { data, error } = await this.client
+      .from('weekend_schedules')
+      .upsert(schedule, { onConflict: 'start_sunday' })
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    this.cache.invalidate(WEEKEND_SCHEDULES_CACHE_KEY);
+    return data as WeekendSchedule;
+  }
+
+  async deleteWeekendSchedule(id: string): Promise<void> {
+    const { error } = await this.client.from('weekend_schedules').delete().eq('id', id);
+    if (error) throw error;
+    this.cache.invalidate(WEEKEND_SCHEDULES_CACHE_KEY);
   }
 
   /**

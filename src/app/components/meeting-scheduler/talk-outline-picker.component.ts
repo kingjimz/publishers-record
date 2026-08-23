@@ -52,6 +52,10 @@ export class TalkOutlinePickerComponent implements OnDestroy {
   @Input() talkNumber: number | null = null;
   @Input() theme: string | null = null;
   @Input() placeholder = 'Select talk theme';
+  /** 'field' = bordered form control; 'inline' = borderless, inherits the sheet typography. */
+  @Input() variant: 'field' | 'inline' = 'field';
+  /** Inline only: render the display value as plain text with no panel. */
+  @Input() readonly = false;
   @Output() picked = new EventEmitter<TalkThemePick>();
 
   @ViewChild('trigger') private trigger?: ElementRef<HTMLElement>;

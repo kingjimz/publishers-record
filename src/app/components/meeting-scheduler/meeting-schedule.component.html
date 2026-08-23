@@ -185,20 +185,159 @@
         </select>
       </label>
     } @else {
-      <label class="flex items-center gap-2 ml-auto" title="The printed schedule covers the selected month through this month (one rotation cycle).">
-        <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Export range until</span>
-        <select
-          [ngModel]="rangeEndMonth"
-          (ngModelChange)="onRangeEndChange($event)"
-          name="rangeEndMonth"
-          class="ms-field w-auto">
-          @for (option of rangeEndOptions; track option.value) {
-            <option [value]="option.value">{{ option.label }}</option>
-          }
-        </select>
-      </label>
+      <div class="flex items-center gap-2 ml-auto">
+        <span class="text-sm font-medium text-slate-700 dark:text-slate-300">View</span>
+        <div class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 p-0.5 bg-slate-50 dark:bg-slate-800">
+          <button type="button"
+            (click)="setWeekendView('sheet')"
+            class="rounded-md px-3 py-1 text-xs font-semibold transition-colors"
+            [class.bg-white]="weekendView === 'sheet'"
+            [class.dark:bg-slate-600]="weekendView === 'sheet'"
+            [class.shadow-sm]="weekendView === 'sheet'"
+            [class.text-slate-800]="weekendView === 'sheet'"
+            [class.dark:text-slate-100]="weekendView === 'sheet'"
+            [class.text-slate-500]="weekendView !== 'sheet'"
+            [class.dark:text-slate-400]="weekendView !== 'sheet'">
+            <i class="bi bi-table"></i> Schedule Sheet
+          </button>
+          <button type="button"
+            (click)="setWeekendView('cards')"
+            class="rounded-md px-3 py-1 text-xs font-semibold transition-colors"
+            [class.bg-white]="weekendView === 'cards'"
+            [class.dark:bg-slate-600]="weekendView === 'cards'"
+            [class.shadow-sm]="weekendView === 'cards'"
+            [class.text-slate-800]="weekendView === 'cards'"
+            [class.dark:text-slate-100]="weekendView === 'cards'"
+            [class.text-slate-500]="weekendView !== 'cards'"
+            [class.dark:text-slate-400]="weekendView !== 'cards'">
+            <i class="bi bi-card-list"></i> Month Cards
+          </button>
+        </div>
+      </div>
+      @if (activeSchedule) {
+        <span class="ms-badge bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 ring-primary-600/15 dark:ring-primary-400/25"
+          title="The export covers this rotation cycle: one speaking Sunday per active elder and ministerial servant.">
+          <i class="bi bi-arrow-repeat"></i>
+          {{ rangeLabel }} &bull; {{ activeSchedule.speaker_count }} speakers
+        </span>
+      } @else {
+        <label class="flex items-center gap-2" title="Fallback export range until a rotation schedule is created.">
+          <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Export range until</span>
+          <select
+            [ngModel]="rangeEndMonth"
+            (ngModelChange)="onRangeEndChange($event)"
+            name="rangeEndMonth"
+            class="ms-field w-auto">
+            @for (option of rangeEndOptions; track option.value) {
+              <option [value]="option.value">{{ option.label }}</option>
+            }
+          </select>
+        </label>
+      }
+      <button type="button" (click)="openNewSchedule()"
+        [disabled]="loading || newScheduleLoading || sheetSaving"
+        class="ms-btn ms-btn-secondary">
+        @if (newScheduleLoading) {
+          <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+          Preparing...
+        } @else {
+          <i class="bi bi-plus-lg"></i>
+          New Schedule
+        }
+      </button>
     }
   </div>
+
+  <!-- Weekend rotation sheet -->
+  @if (mode === 'weekend' && weekendView === 'sheet') {
+    @if (scheduleEnded) {
+      <div class="flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-900/20 px-4 py-3">
+        <i class="bi bi-arrow-repeat text-amber-500"></i>
+        <p class="text-sm text-amber-800 dark:text-amber-300 flex-1 min-w-52">
+          This rotation ended {{ formatSunday(activeSchedule!.end_sunday) }}. Every elder and ministerial servant has had a speaking Sunday; start the next cycle.
+        </p>
+        <button type="button" (click)="openNewSchedule()" [disabled]="newScheduleLoading"
+          class="ms-btn ms-btn-primary">
+          <i class="bi bi-plus-lg"></i>
+          Start Next Schedule
+        </button>
+      </div>
+    }
+
+    @if (loading || sheetLoading) {
+      <div class="ms-card flex items-center justify-center gap-3 py-16 text-slate-400 dark:text-slate-500" aria-label="Loading schedule sheet">
+        <span class="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+        Loading the schedule sheet...
+      </div>
+    } @else if (!activeSchedule) {
+      <div class="ms-card flex flex-col items-center gap-3 py-14 px-6 text-center">
+        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700/70 text-slate-400 dark:text-slate-500">
+          <i class="bi bi-table text-xl"></i>
+        </div>
+        <p class="text-sm text-slate-500 dark:text-slate-400 max-w-md">
+          No rotation schedule yet. A schedule spans one speaking Sunday per active elder and ministerial servant; when the rotation is done, you create the next one.
+        </p>
+        <button type="button" (click)="openNewSchedule()" [disabled]="newScheduleLoading || loading"
+          class="ms-btn ms-btn-primary">
+          @if (newScheduleLoading) {
+            <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+            Preparing...
+          } @else {
+            <i class="bi bi-plus-lg"></i>
+            New Schedule
+          }
+        </button>
+      </div>
+    } @else {
+      <div class="ms-card p-4 sm:p-5">
+        <app-weekend-range-sheet
+          [weeks]="sheetWeeks"
+          [congregationName]="congregationName"
+          [rangeLabel]="sheetRangeLabel"
+          (rangeLabelChange)="sheetRangeLabel = $event"
+          [publishers]="publishers"
+          [history]="history"
+          [historyDetail]="historyDetail"
+          [outlines]="outlines"
+          [outlineUsage]="outlineUsage"
+          [language]="importLanguage"
+          (rowKindChange)="onSheetRowKindChange()" />
+
+        @if (sheetHasChanges) {
+          <div class="sticky bottom-3 z-10 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 px-4 py-3 shadow-soft-lg backdrop-blur">
+            <p class="text-sm text-slate-600 dark:text-slate-300">
+              <i class="bi bi-pencil-square text-primary-500"></i>
+              @if (sheetDirtyCount > 0) {
+                {{ sheetDirtyCount }} week{{ sheetDirtyCount === 1 ? '' : 's' }} changed
+              }
+              @if (sheetDirtyCount > 0 && sheetScheduleDirty) { &bull; }
+              @if (pendingEndSunday) {
+                schedule now runs to {{ formatSunday(pendingEndSunday) }}
+              } @else if (sheetScheduleDirty) {
+                schedule header updated
+              }
+            </p>
+            <div class="flex items-center gap-2">
+              <button type="button" (click)="onDiscardSheet()" [disabled]="sheetSaving"
+                class="ms-btn ms-btn-secondary">
+                Discard
+              </button>
+              <button type="button" (click)="onSaveSheet()" [disabled]="sheetSaving"
+                class="ms-btn ms-btn-primary disabled:opacity-70">
+                @if (sheetSaving) {
+                  <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+                  Saving...
+                } @else {
+                  <i class="bi bi-check-lg"></i>
+                  Save Schedule
+                }
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  } @else {
 
   <!-- Week cards -->
   @if (loading) {
@@ -516,6 +655,82 @@
     </div>
   }
 
+  }
+
+  <!-- New rotation schedule -->
+  @if (newScheduleDraft) {
+    <div class="ms-modal-backdrop" (click)="onCancelNewSchedule()">
+      <div class="ms-modal-panel max-w-md" (click)="$event.stopPropagation()">
+        <div class="flex items-center gap-3">
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400">
+            <i class="bi bi-arrow-repeat"></i>
+          </div>
+          <h3 class="text-base font-semibold text-slate-900 dark:text-slate-100">New Weekend Schedule</h3>
+        </div>
+
+        <p class="mt-3 text-sm text-slate-600 dark:text-slate-400">
+          The schedule spans one speaking Sunday per active elder and ministerial servant. Assemblies, conventions, memorials, and no-meeting weeks inside the range push the end date out so nobody loses a turn.
+        </p>
+
+        <div class="mt-4 space-y-3">
+          <label class="block">
+            <span class="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">First Sunday</span>
+            <input type="date" class="ms-field mt-1"
+              [ngModel]="newScheduleDraft.start_sunday"
+              (ngModelChange)="onNewScheduleStartChange($event)"
+              name="newScheduleStart" />
+            <span class="mt-0.5 block text-xs text-slate-400 dark:text-slate-500">Any date snaps to the Sunday on or after it.</span>
+          </label>
+
+          <dl class="divide-y divide-slate-100 dark:divide-slate-700 rounded-xl border border-slate-200 dark:border-slate-700 text-sm overflow-hidden">
+            <div class="flex items-center justify-between px-3.5 py-2.5">
+              <dt class="text-slate-500 dark:text-slate-400">Speakers in rotation</dt>
+              <dd class="font-medium tabular-nums text-slate-800 dark:text-slate-200">
+                {{ newScheduleDraft.poolCount }}
+                <span class="text-xs font-normal text-slate-400 dark:text-slate-500">({{ newScheduleDraft.elders }} elders, {{ newScheduleDraft.ministerialServants }} MS)</span>
+              </dd>
+            </div>
+            <div class="flex items-center justify-between px-3.5 py-2.5">
+              <dt class="text-slate-500 dark:text-slate-400">Last Sunday</dt>
+              <dd class="font-medium text-slate-800 dark:text-slate-200">
+                @if (newScheduleLoading) {
+                  <span class="h-3.5 w-3.5 inline-block animate-spin rounded-full border-2 border-current border-t-transparent align-middle"></span>
+                } @else {
+                  {{ formatSunday(newScheduleDraft.end_sunday) }}
+                }
+              </dd>
+            </div>
+          </dl>
+
+          <label class="block">
+            <span class="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Printed range label</span>
+            <input type="text" class="ms-field mt-1"
+              [(ngModel)]="newScheduleDraft.range_label"
+              name="newScheduleLabel"
+              placeholder="Agosto – Disiembre 2026" />
+            <span class="mt-0.5 block text-xs text-slate-400 dark:text-slate-500">Free text under the schedule title; edit it any way you like.</span>
+          </label>
+        </div>
+
+        <div class="mt-5 flex items-center justify-end gap-2">
+          <button type="button" (click)="onCancelNewSchedule()" [disabled]="newScheduleSaving"
+            class="ms-btn ms-btn-secondary">
+            Cancel
+          </button>
+          <button type="button" (click)="onConfirmNewSchedule()" [disabled]="newScheduleSaving || newScheduleLoading"
+            class="ms-btn ms-btn-primary disabled:opacity-70">
+            @if (newScheduleSaving) {
+              <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+              Creating...
+            } @else {
+              Create Schedule
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
   <!-- Import progress -->
   @if (importModalOpen) {
     <div class="ms-modal-backdrop" (click)="closeImportModal()">
@@ -693,7 +908,7 @@
           <div class="min-w-0 flex-1">
             <h3 class="text-base font-semibold text-slate-900 dark:text-slate-100">Schedule Preview</h3>
             <p class="text-xs text-slate-500 dark:text-slate-400">
-              {{ monthLabel }} &middot; {{ previewPages.length }} page{{ previewPages.length === 1 ? '' : 's' }} &middot; matches the PNG and PDF output exactly
+              {{ generateScopeLabel }} &middot; {{ previewPages.length }} page{{ previewPages.length === 1 ? '' : 's' }} &middot; matches the PNG and PDF output exactly
             </p>
           </div>
           <button type="button" (click)="onClosePreview()" [disabled]="generating"
