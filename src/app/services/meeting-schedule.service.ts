@@ -13,6 +13,7 @@ export type MeetingPartType =
   | 'bible_reading'
   | 'student_demo'
   | 'student_talk'
+  | 'ministry_discussion'
   | 'living_talk'
   | 'cbs'
   | 'cbs_reader'
@@ -40,6 +41,8 @@ export interface MeetingWeek {
   week_of: string;
   week_type: MeetingWeekType;
   notes: string | null;
+  /** Why there is no meeting this week, e.g. "Kombension ti Rehion"; printed on the schedule. */
+  no_meeting_reason: string | null;
   /** Cleaning assignment shown on the printed midweek schedule, e.g. "Group 5". */
   cleaning_group: string | null;
 

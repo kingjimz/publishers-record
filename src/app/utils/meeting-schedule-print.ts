@@ -1,10 +1,20 @@
 import {
   MeetingPart,
-  MeetingSection,
   MeetingWeek,
 } from '../services/meeting-schedule.service';
 import { STUDENT_PART_TYPES } from '../components/meeting-scheduler/meeting-defaults';
+import {
+  LABELS,
+  SECTION_COLORS,
+  ScheduleLabels,
+  ScheduleLanguage,
+  assignmentRolePair,
+  buildMidweekSections,
+  weekRange,
+} from './meeting-schedule-model';
 import { displayPublisherName } from './publisher-name';
+
+export type { ScheduleLanguage } from './meeting-schedule-model';
 
 /** XML-safe escape (numeric entities only), shared with the weekend range export. */
 export function esc(s: string | null | undefined): string {
@@ -35,109 +45,9 @@ function shortDate(iso: string | null | undefined): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export type ScheduleLanguage = 'en' | 'ilo';
+export type ScheduleDocumentMode = 'midweek' | 'weekend';
 
-interface PrintLabels {
-  midweekTitle: string;
-  cleaner: string;
-  chairman: string;
-  prayer: string;
-  song: string;
-  andPrayer: string;
-  openingComments: string;
-  closingComments: string;
-  sections: Record<MeetingSection, string>;
-  student: string;
-  assistant: string;
-  preacher: string;
-  householder: string;
-  conductor: string;
-  reader: string;
-  noMeeting: string;
-  coVisit: string;
-  memorial: string;
-  months: string[];
-}
-
-const LABELS: Record<ScheduleLanguage, PrintLabels> = {
-  en: {
-    midweekTitle: 'Midweek Meeting Schedule',
-    cleaner: 'Cleaner of the week',
-    chairman: 'Chairman:',
-    prayer: 'Prayer:',
-    song: 'Song',
-    andPrayer: 'and Prayer',
-    openingComments: 'Opening Comments (1 min.)',
-    closingComments: 'Concluding Comments (3 min.)',
-    sections: {
-      treasures: "TREASURES FROM GOD'S WORD",
-      ministry: 'APPLY YOURSELF TO THE FIELD MINISTRY',
-      living: 'LIVING AS CHRISTIANS',
-    },
-    student: 'Student:',
-    assistant: 'Assistant:',
-    preacher: 'Preacher:',
-    householder: 'House Holder:',
-    conductor: 'Conductor:',
-    reader: 'Reader:',
-    noMeeting: 'No meeting this week',
-    coVisit: 'Circuit overseer visit',
-    memorial: 'Memorial week',
-    months: [
-      'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
-      'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER',
-    ],
-  },
-  ilo: {
-    midweekTitle: 'Eskediul ti Gimong iti Tengnga ti Lawas',
-    cleaner: 'Cleaner of the week',
-    chairman: 'Tserman:',
-    prayer: 'Kararag:',
-    song: 'Kanta',
-    andPrayer: 'ken Kararag',
-    openingComments: 'Panglukat a Sasao (1 min.)',
-    closingComments: 'Pangserra a Sasao (3 min.)',
-    sections: {
-      treasures: 'GAMENG MANIPUD ITI SAO TI DIOS',
-      ministry: 'AGBALIN A MAS EPEKTIBO ITI MINISTERIO',
-      living: 'PANAGBIAG KAS KRISTIANO',
-    },
-    student: 'Estudiante:',
-    assistant: 'Katulonganna:',
-    preacher: 'Preacher:',
-    householder: 'House Holder:',
-    conductor: 'Konduktor:',
-    reader: 'Parabasa:',
-    noMeeting: 'Awan ti gimong iti daytoy a lawas',
-    coVisit: 'Panagsarungkar ti manangaywan iti sirkito',
-    memorial: 'Memorial',
-    months: [
-      'ENERO', 'PEBRERO', 'MARSO', 'ABRIL', 'MAYO', 'HUNIO',
-      'HULIO', 'AGOSTO', 'SETIEMBRE', 'OKTUBRE', 'NOBIEMBRE', 'DISIEMBRE',
-    ],
-  },
-};
-
-const SECTION_COLORS: Record<MeetingSection, string> = {
-  treasures: '#57646e',
-  ministry: '#bf8f00',
-  living: '#953734',
-};
-
-/** "AGOSTO 10 – 16" style range for the workbook week (Monday to Sunday). */
-function weekRange(weekOfIso: string, labels: PrintLabels): string {
-  const start = new Date(`${weekOfIso}T00:00:00`);
-  if (Number.isNaN(start.getTime())) return esc(weekOfIso);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
-
-  const startMonth = labels.months[start.getMonth()];
-  const endMonth = labels.months[end.getMonth()];
-  if (start.getMonth() === end.getMonth()) {
-    return `${startMonth} ${start.getDate()} – ${end.getDate()}`;
-  }
-  return `${startMonth} ${start.getDate()} – ${endMonth} ${end.getDate()}`;
-}
+type PrintLabels = ScheduleLabels;
 
 /** Two-line assignment cell: "Label: Name" rows. */
 function labeledNames(pairs: [string, string | null | undefined][]): string {
@@ -153,27 +63,15 @@ function assignmentCell(
   readerName: string | null,
   labels: PrintLabels
 ): string {
-  if (part.part_type === 'bible_reading' || part.part_type === 'student_talk') {
-    if (!part.assignee_name && !part.assistant_name) return '&#160;';
-    return labeledNames([
-      [labels.student, part.assignee_name],
-      [labels.assistant, part.assistant_name],
-    ]);
+  const pair = assignmentRolePair(part.part_type, labels);
+  if (!pair) {
+    return part.assignee_name ? escName(part.assignee_name) : '&#160;';
   }
-  if (part.part_type === 'student_demo') {
-    if (!part.assignee_name && !part.assistant_name) return '&#160;';
-    return labeledNames([
-      [labels.preacher, part.assignee_name],
-      [labels.householder, part.assistant_name],
-    ]);
-  }
-  if (part.part_type === 'cbs') {
-    return labeledNames([
-      [labels.conductor, part.assignee_name],
-      [labels.reader, readerName],
-    ]);
-  }
-  return part.assignee_name ? escName(part.assignee_name) : '&#160;';
+  const secondaryName = part.part_type === 'cbs' ? readerName : part.assistant_name;
+  return labeledNames([
+    [pair.primary, part.assignee_name],
+    [pair.secondary, secondaryName],
+  ]);
 }
 
 function partTitleCell(part: MeetingPart, num: number): string {
@@ -182,16 +80,32 @@ function partTitleCell(part: MeetingPart, num: number): string {
   return `<strong>${num}. ${esc(part.title)}</strong>${minutes}${setting}`;
 }
 
+/**
+ * Full-height placeholder for a week with no meeting, so the paired week on
+ * the page keeps its normal position instead of riding to the top.
+ */
+function noMeetingBlock(heading: string, week: MeetingWeek, labels: PrintLabels, mode: 'mid' | 'wknd'): string {
+  const reason = week.no_meeting_reason?.trim();
+  const headline = reason ? esc(reason.toUpperCase()) : labels.noMeeting;
+  const subtitle = reason ? `<p class="nm-sub">${labels.noMeeting}</p>` : '';
+  const notes = week.notes ? `<p class="nm-notes">${esc(week.notes)}</p>` : '';
+  return `<div class="week week-ph week-ph-${mode}">
+    <div class="week-head">${heading}</div>
+    <div class="nm-panel">
+      <p class="nm-headline">${headline}</p>
+      ${subtitle}
+      ${notes}
+    </div>
+  </div>`;
+}
+
 function midweekBlock(week: MeetingWeek, labels: PrintLabels): string {
-  const heading = `${weekRange(week.week_of, labels)}${
+  const heading = `${esc(weekRange(week.week_of, labels))}${
     week.weekly_bible_reading ? ` | ${esc(week.weekly_bible_reading.toUpperCase())}` : ''
   }`;
 
   if (week.week_type === 'no_meeting') {
-    return `<div class="week">
-      <div class="week-head">${heading}</div>
-      <p class="special">${labels.noMeeting}${week.notes ? ` — ${esc(week.notes)}` : ''}</p>
-    </div>`;
+    return noMeetingBlock(heading, week, labels, 'mid');
   }
 
   const typeNote =
@@ -204,32 +118,24 @@ function midweekBlock(week: MeetingWeek, labels: PrintLabels): string {
   const readerName =
     week.parts.find((p) => p.part_type === 'cbs_reader')?.assignee_name ?? null;
 
-  // Continuous numbering across sections, skipping the merged CBS reader row.
-  let num = 0;
-  const sectionRows = (['treasures', 'ministry', 'living'] as MeetingSection[])
-    .map((section) => {
-      const parts = week.parts.filter(
-        (p) => p.section === section && p.part_type !== 'cbs_reader'
-      );
-      if (parts.length === 0) return '';
-
+  const sectionRows = buildMidweekSections(week, labels)
+    .map((sectionVm) => {
       // The middle song opens the Living as Christians section.
       const songRow =
-        section === 'living' && week.song_middle
+        sectionVm.section === 'living' && week.song_middle
           ? `<tr><td class="left">♫ ${labels.song} ${week.song_middle}</td><td class="right">&#160;</td></tr>`
           : '';
 
-      const rows = parts
-        .map((part) => {
-          num++;
-          return `<tr>
+      const rows = sectionVm.rows
+        .map(
+          ({ part, num }) => `<tr>
             <td class="left">${partTitleCell(part, num)}</td>
             <td class="right">${assignmentCell(part, readerName, labels)}</td>
-          </tr>`;
-        })
+          </tr>`
+        )
         .join('');
 
-      return `<tr><td colspan="2" class="section" style="background:${SECTION_COLORS[section]}">${labels.sections[section]}</td></tr>${songRow}${rows}`;
+      return `<tr><td colspan="2" class="section" style="background:${sectionVm.color}">${sectionVm.heading}</td></tr>${songRow}${rows}`;
     })
     .join('');
 
@@ -259,24 +165,62 @@ function midweekBlock(week: MeetingWeek, labels: PrintLabels): string {
   </div>`;
 }
 
+function weekendBlock(week: MeetingWeek, labels: PrintLabels): string {
+  const heading = esc(weekRange(week.week_of, labels));
+
+  if (week.week_type === 'no_meeting') {
+    return noMeetingBlock(heading, week, labels, 'wknd');
+  }
+
+  const typeNote =
+    week.week_type === 'co_visit' ? `<p class="special">${labels.coVisit}</p>` : '';
+
+  const speaker = [escName(week.public_talk_speaker_name), esc(week.speaker_congregation)]
+    .filter(Boolean)
+    .join(', ');
+
+  return `<div class="week">
+    <div class="week-head">${heading}</div>
+    ${typeNote}
+    <table class="program">
+      <tr><td class="left">&#160;</td><td class="right split"><span class="rlabel">${labels.chairman}</span><span class="rvalue">${escName(week.weekend_chairman_name) || '&#160;'}</span></td></tr>
+      <tr><td colspan="2" class="section" style="background:${SECTION_COLORS.treasures}">${labels.publicTalk}${week.weekend_song_opening ? ` &#160;•&#160; ♫ ${labels.song} ${week.weekend_song_opening}` : ''}</td></tr>
+      <tr><td class="left">${week.public_talk_theme ? `<strong>${esc(week.public_talk_theme)}</strong>` : '&#160;'}</td><td class="right">${speaker || '&#160;'}</td></tr>
+      <tr><td colspan="2" class="section" style="background:${SECTION_COLORS.living}">${labels.watchtowerStudy}${week.weekend_song_middle ? ` &#160;•&#160; ♫ ${labels.song} ${week.weekend_song_middle}` : ''}</td></tr>
+      <tr><td class="left">${week.wt_article_title ? `<strong>${esc(week.wt_article_title)}</strong>` : '&#160;'}</td><td class="right">${labeledNames([
+        [labels.conductor, week.wt_conductor_name],
+        [labels.reader, week.wt_reader_name],
+      ])}</td></tr>
+      <tr>
+        <td class="left">${week.weekend_song_closing ? `♫ ${labels.song} ${week.weekend_song_closing} ${labels.andPrayer}` : '&#160;'}</td>
+        <td class="right">${labeledNames([
+          [labels.prayer, week.weekend_opening_prayer_name],
+          [labels.prayer, week.weekend_closing_prayer_name],
+        ])}</td>
+      </tr>
+    </table>
+    ${week.notes ? `<p class="notes">${esc(week.notes)}</p>` : ''}
+  </div>`;
+}
+
 /**
- * Midweek board schedule matching the congregation's manual sheet: centered
- * header, dark week band with date range and Bible reading, colored section
- * bands, continuous part numbering, and per-role assignment labels.
- * (The weekend schedule uses the range table in weekend-range-print.ts.)
+ * Board schedule matching the congregation's manual sheet: centered header,
+ * dark week band with date range and Bible reading, colored section bands,
+ * continuous part numbering, and per-role assignment labels.
  */
 export function buildMonthScheduleDocument(
   weeks: MeetingWeek[],
   congregationName: string,
   monthLabel: string,
+  mode: ScheduleDocumentMode,
   language: ScheduleLanguage = 'en'
 ): string {
   const labels = LABELS[language] ?? LABELS.en;
-  const title = labels.midweekTitle;
+  const title = mode === 'midweek' ? labels.midweekTitle : labels.weekendTitle;
 
   const weekBlocks = [...weeks]
     .sort((a, b) => a.week_of.localeCompare(b.week_of))
-    .map((week) => midweekBlock(week, labels));
+    .map((week) => (mode === 'midweek' ? midweekBlock(week, labels) : weekendBlock(week, labels)));
 
   // Two weeks per printed page, like the congregation's manual sheet.
   const pages: string[] = [];
@@ -305,7 +249,9 @@ export function buildMonthScheduleDocument(
   }
   .cong { text-align: center; font-weight: bold; font-size: 10pt; margin: 0; text-transform: uppercase; letter-spacing: 0.02em; }
   .doc-title { text-align: center; font-weight: bold; font-size: 13pt; margin: 1px 0 8px 0; }
-  .sheet-page { page-break-after: always; }
+  /* The PNG exporter renders each page inside a fixed-height flex column, so
+     the sheet fills the page and flexible blocks can absorb leftover space. */
+  .sheet-page { page-break-after: always; flex: 1 0 auto; display: flex; flex-direction: column; }
   .sheet-page:last-child { page-break-after: auto; }
   .week { page-break-inside: avoid; }
   .week + .week { margin-top: 30px; }
@@ -321,6 +267,15 @@ export function buildMonthScheduleDocument(
   .alabel { font-weight: bold; }
   .special { border: 1px solid #bfbfbf; border-top: none; padding: 5px 8px; margin: 0; font-style: italic; }
   .notes { border: 1px solid #bfbfbf; border-top: none; padding: 4px 8px; margin: 0; font-size: 8.5pt; color: #333; }
+  .week-ph { display: flex; flex-direction: column; }
+  /* Grows to exactly the space a normal week would use, never past the page,
+     so the paired week keeps its position and no page needs shrinking. */
+  .week-ph-mid { flex: 1 0 auto; }
+  .week-ph-wknd { min-height: 230px; }
+  .nm-panel { flex: 1; border: 1px solid #bfbfbf; border-top: none; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px; padding: 24px 32px; }
+  .nm-headline { margin: 0; font-weight: bold; font-size: 15pt; text-transform: uppercase; letter-spacing: 0.04em; color: #c00000; }
+  .nm-sub { margin: 0; font-style: italic; font-size: 11pt; color: #333; }
+  .nm-notes { margin: 6px 0 0 0; font-size: 9pt; color: #555; }
 </style>
 </head>
 <body>

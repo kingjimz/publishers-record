@@ -1,23 +1,54 @@
 <div class="relative">
-  <button
-    #trigger
-    type="button"
-    (click)="openPanel()"
-    class="ms-field flex items-center justify-between gap-2 text-left">
-    <span class="truncate" [class.text-slate-900]="!!value" [class.dark:text-slate-100]="!!value"
-      [class.text-slate-400]="!value" [class.dark:text-slate-500]="!value">
-      {{ displayValue || placeholder }}
-    </span>
-    <span class="flex items-center gap-1.5 shrink-0">
-      @if (currentWarning) {
-        <i class="bi bi-exclamation-triangle-fill text-amber-500" [title]="currentWarning"></i>
-      }
-      <i class="bi bi-chevron-down text-slate-400 text-xs transition-transform duration-150" [class.rotate-180]="open"></i>
-    </span>
-  </button>
+  @if (variant === 'inline') {
+    @if (readonly) {
+      <!-- Saved-week sheet: the name as printed text; warnings stay as the icon. -->
+      <span class="inline-block w-full min-w-0 text-left">
+        @if (displayValue) {
+          {{ displayValue }}
+        } @else {
+          &nbsp;
+        }
+        @if (currentWarning) {
+          <i class="bi bi-exclamation-triangle-fill text-amber-500 text-xs ml-1" [title]="currentWarning"></i>
+        }
+      </span>
+    } @else {
+      <!-- Workbook view: borderless trigger that reads like printed text. Warnings
+           stay visible as the amber icon; the sheet has no room for helper lines. -->
+      <button
+        #trigger
+        type="button"
+        (click)="openPanel()"
+        class="w-full min-w-0 cursor-pointer rounded-sm text-left align-baseline hover:bg-sky-50 focus-visible:bg-sky-50 focus-visible:outline-none">
+        <span [class.text-slate-400]="!value" [class.italic]="!value">
+          {{ displayValue || placeholder }}
+        </span>
+        @if (currentWarning) {
+          <i class="bi bi-exclamation-triangle-fill text-amber-500 text-xs ml-1" [title]="currentWarning"></i>
+        }
+      </button>
+    }
+  } @else {
+    <button
+      #trigger
+      type="button"
+      (click)="openPanel()"
+      class="ms-field flex items-center justify-between gap-2 text-left">
+      <span class="truncate" [class.text-slate-900]="!!value" [class.dark:text-slate-100]="!!value"
+        [class.text-slate-400]="!value" [class.dark:text-slate-500]="!value">
+        {{ displayValue || placeholder }}
+      </span>
+      <span class="flex items-center gap-1.5 shrink-0">
+        @if (currentWarning) {
+          <i class="bi bi-exclamation-triangle-fill text-amber-500" [title]="currentWarning"></i>
+        }
+        <i class="bi bi-chevron-down text-slate-400 text-xs transition-transform duration-150" [class.rotate-180]="open"></i>
+      </span>
+    </button>
 
-  @if (currentWarning) {
-    <p class="mt-1 text-xs text-amber-600 dark:text-amber-400">{{ currentWarning }}</p>
+    @if (currentWarning) {
+      <p class="mt-1 text-xs text-amber-600 dark:text-amber-400">{{ currentWarning }}</p>
+    }
   }
 
   @if (open) {

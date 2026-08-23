@@ -15,12 +15,9 @@ create table if not exists public.public_talk_outlines (
   updated_at timestamptz not null default now(),
   unique (talk_number, language)
 );
-
 create index if not exists idx_public_talk_outlines_language
   on public.public_talk_outlines (language, talk_number);
-
 alter table public.public_talk_outlines enable row level security;
-
 -- Congregation-shared data: same policy shape as the other scheduler tables.
 drop policy if exists "Single user full access" on public.public_talk_outlines;
 create policy "Single user full access"
@@ -29,19 +26,15 @@ create policy "Single user full access"
   to authenticated
   using (true)
   with check (true);
-
 -- Explicit grants required for the Data API (see 20261001000000).
 grant select, insert, update, delete on public.public_talk_outlines to authenticated;
-
 drop trigger if exists trg_public_talk_outlines_updated_at on public.public_talk_outlines;
 create trigger trg_public_talk_outlines_updated_at
 before update on public.public_talk_outlines
 for each row
 execute function public.set_meeting_schedule_updated_at();
-
 comment on table public.public_talk_outlines is
   'Public talk outline list (S-99): number + theme per language, feeding the weekend Tema picker.';
-
 -- Weekend additions: outline number behind public_talk_theme (theme keeps the
 -- title only), special weekend events, and a second speaker for symposiums.
 alter table public.meeting_weeks
@@ -49,7 +42,6 @@ alter table public.meeting_weeks
   add column if not exists weekend_event text
     check (weekend_event in ('assembly', 'convention', 'special_talk', 'symposium')),
   add column if not exists public_talk_speaker2_name text;
-
 comment on column public.meeting_weeks.public_talk_number is
   'S-99 outline number for public_talk_theme; null for free-text themes (e.g. drama during C.O. visit).';
 comment on column public.meeting_weeks.weekend_event is

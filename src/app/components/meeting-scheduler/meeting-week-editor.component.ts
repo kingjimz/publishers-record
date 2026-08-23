@@ -13,6 +13,7 @@ import {
 } from '../../services/meeting-schedule.service';
 import { PublisherRecord } from '../../services/supabase.service';
 import { TalkOutline } from '../../services/talk-outline.service';
+import { ScheduleLanguage } from '../../utils/meeting-schedule-model';
 import { AssigneePickerComponent } from './assignee-picker.component';
 import { TalkOutlinePickerComponent, TalkThemePick } from './talk-outline-picker.component';
 import {
@@ -22,12 +23,17 @@ import {
   ROLE_RULES,
   buildDefaultWeekParts,
 } from './meeting-defaults';
+import { MeetingWeekWorkbookComponent } from './meeting-week-workbook.component';
+
+/** Preferred editor view, persisted per device. */
+const EDITOR_VIEW_STORAGE_KEY = 'pr-meeting-editor-view';
+type EditorViewMode = 'workbook' | 'form';
 
 /** Edits one week's midweek program and weekend assignments in place on a draft copy. */
 @Component({
   selector: 'app-meeting-week-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, AssigneePickerComponent, TalkOutlinePickerComponent],
+  imports: [CommonModule, FormsModule, AssigneePickerComponent, TalkOutlinePickerComponent, MeetingWeekWorkbookComponent],
   templateUrl: './meeting-week-editor.component.html',
 })
 export class MeetingWeekEditorComponent {
@@ -41,9 +47,42 @@ export class MeetingWeekEditorComponent {
   @Input() outlines: TalkOutline[] = [];
   /** talk number -> ISO date last given, for the picker's badge. */
   @Input() outlineUsage: Map<number, string> = new Map();
+  /** Schedule language, so the workbook view matches the export. */
+  @Input() language: ScheduleLanguage = 'en';
   @Input() saving = false;
   @Output() save = new EventEmitter<void>();
   @Output() cancelEdit = new EventEmitter<void>();
+
+  /** Workbook (WYSIWYG sheet) or classic form view; midweek only. */
+  protected viewMode: EditorViewMode = MeetingWeekEditorComponent.storedViewMode();
+
+  private static storedViewMode(): EditorViewMode {
+    try {
+      const stored = localStorage.getItem(EDITOR_VIEW_STORAGE_KEY);
+      if (stored === 'form' || stored === 'workbook') return stored;
+    } catch {
+      // Storage unavailable (private mode); fall through to the default.
+    }
+    return 'workbook';
+  }
+
+  protected setViewMode(mode: EditorViewMode): void {
+    this.viewMode = mode;
+    try {
+      localStorage.setItem(EDITOR_VIEW_STORAGE_KEY, mode);
+    } catch {
+      // Storage unavailable; the choice still applies for this session.
+    }
+  }
+
+  /** The workbook sheet only exists for the midweek program. */
+  protected get workbookAvailable(): boolean {
+    return this.mode === 'midweek';
+  }
+
+  protected get showWorkbook(): boolean {
+    return this.workbookAvailable && this.viewMode === 'workbook';
+  }
 
   protected readonly partTypeLabels = PART_TYPE_LABELS;
 
@@ -167,7 +206,14 @@ export class MeetingWeekEditorComponent {
   private applyWeekType(newType: MeetingWeekType): void {
     this.week.week_type = newType;
     this.week.parts = buildDefaultWeekParts(newType);
+    if (newType !== 'no_meeting') this.week.no_meeting_reason = null;
   }
+
+  /** Common reasons offered as one-tap picks when the week has no meeting. */
+  protected readonly noMeetingReasons: string[] = [
+    'Regional Convention Week',
+    'Circuit Assembly Week',
+  ];
 
   protected addPart(section: MeetingSection): void {
     const sectionParts = this.partsFor(section);
