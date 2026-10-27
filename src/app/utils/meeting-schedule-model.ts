@@ -94,7 +94,7 @@ export const LABELS: Record<ScheduleLanguage, ScheduleLabels> = {
     publicTalk: 'PALAWAG PUBLIKO',
     watchtowerStudy: 'PANAGADAL ITI PAGWANAWANAN',
     noMeeting: 'Awan ti gimong iti daytoy a lawas',
-    coVisit: 'Panagsarungkar ti manangaywan iti sirkito',
+    coVisit: "CO's Visit",
     memorial: 'Memorial',
     months: [
       'ENERO', 'PEBRERO', 'MARSO', 'ABRIL', 'MAYO', 'HUNIO',

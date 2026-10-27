@@ -109,7 +109,7 @@ function midweekBlock(week: MeetingWeek, labels: PrintLabels): string {
 
   const typeNote =
     week.week_type === 'co_visit'
-      ? `<p class="special">${labels.coVisit}</p>`
+      ? `<p class="special co-visit">${labels.coVisit}</p>`
       : week.week_type === 'memorial'
         ? `<p class="special">${labels.memorial}</p>`
         : '';
@@ -172,7 +172,7 @@ function weekendBlock(week: MeetingWeek, labels: PrintLabels): string {
   }
 
   const typeNote =
-    week.week_type === 'co_visit' ? `<p class="special">${labels.coVisit}</p>` : '';
+    week.week_type === 'co_visit' ? `<p class="special co-visit">${labels.coVisit}</p>` : '';
 
   const speaker = [escName(week.public_talk_speaker_name), esc(week.speaker_congregation)]
     .filter(Boolean)
@@ -265,6 +265,7 @@ export function buildMonthScheduleDocument(
   .right.split .rvalue { display: inline-block; width: 54%; border-left: 1px solid #bfbfbf; padding: 2px 8px; vertical-align: middle; }
   .alabel { font-weight: bold; }
   .special { border: 1px solid #bfbfbf; border-top: none; padding: 5px 8px; margin: 0; font-style: italic; }
+  .special.co-visit { font-weight: bold; }
   .notes { border: 1px solid #bfbfbf; border-top: none; padding: 4px 8px; margin: 0; font-size: 8.5pt; color: #333; }
   .week-ph { display: flex; flex-direction: column; }
   /* Grows to exactly the space a normal week would use, never past the page,
