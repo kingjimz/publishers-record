@@ -7,6 +7,7 @@ import {
   PublisherTypeHistory,
 } from '../../services/meeting-schedule.service';
 import { PublisherRecord } from '../../services/supabase.service';
+import { ScheduleLanguage } from '../../utils/meeting-schedule-model';
 import { displayPublisherName } from '../../utils/publisher-name';
 
 /**
@@ -115,6 +116,55 @@ export function buildDefaultWeekParts(weekType: MeetingWeekType): MeetingPart[] 
   }
 
   return parts;
+}
+
+/** Titles for the closing living slot, which is the only part a CO week changes. */
+const CLOSING_TITLES: Record<ScheduleLanguage, Record<'cbs' | 'cbs_reader' | 'service_talk', string>> = {
+  en: {
+    cbs: 'Congregation Bible Study',
+    cbs_reader: 'CBS Reader',
+    service_talk: 'Service Talk by Circuit Overseer',
+  },
+  ilo: {
+    cbs: 'Panagadal ti Kongregasion iti Biblia',
+    cbs_reader: 'Parabasa ti CBS',
+    service_talk: 'Palawag Para iti Serbisio ti Manangaywan iti Sirkito',
+  },
+};
+
+const CLOSING_PART_TYPES: readonly MeetingPartType[] = ['cbs', 'cbs_reader', 'service_talk'];
+
+/**
+ * Parts for a week whose type just changed. Imported or edited parts are kept
+ * as is (so an Iloko workbook stays Iloko); only the CBS / CO service talk
+ * slot is swapped. Falls back to the default skeleton when there is nothing
+ * to keep.
+ */
+export function partsForWeekType(
+  current: MeetingPart[],
+  weekType: MeetingWeekType,
+  language: ScheduleLanguage = 'en'
+): MeetingPart[] {
+  if (weekType === 'no_meeting' || weekType === 'memorial') return [];
+
+  const kept = current.filter((p) => !CLOSING_PART_TYPES.includes(p.part_type));
+  if (kept.length === 0) return buildDefaultWeekParts(weekType);
+
+  const titles = CLOSING_TITLES[language];
+  const existing = (type: MeetingPartType) => current.find((p) => p.part_type === type);
+  const nextLiving = kept
+    .filter((p) => p.section === 'living')
+    .reduce((max, p) => Math.max(max, p.sort_order + 1), 0);
+
+  const closing =
+    weekType === 'co_visit'
+      ? [existing('service_talk') ?? part('living', nextLiving, titles.service_talk, 30, 'service_talk')]
+      : [
+          existing('cbs') ?? part('living', nextLiving, titles.cbs, 30, 'cbs'),
+          existing('cbs_reader') ?? part('living', nextLiving + 1, titles.cbs_reader, null, 'cbs_reader'),
+        ];
+
+  return [...kept, ...closing.map((p, i) => ({ ...p, sort_order: nextLiving + i }))];
 }
 
 /** ISO date (yyyy-mm-dd) offset by `days` from another ISO date. */

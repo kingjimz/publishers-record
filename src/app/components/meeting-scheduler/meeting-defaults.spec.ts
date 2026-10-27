@@ -5,6 +5,7 @@ import {
   createEmptyWeek,
   eligibilityWarning,
   partnerRecencyWarning,
+  partsForWeekType,
   recencyWarning,
   PART_TYPE_RULES,
   STUDENT_PART_TYPES,
@@ -55,6 +56,36 @@ describe('buildDefaultWeekParts', () => {
   it('returns no parts for no-meeting and memorial weeks', () => {
     expect(buildDefaultWeekParts('no_meeting')).toEqual([]);
     expect(buildDefaultWeekParts('memorial')).toEqual([]);
+  });
+});
+
+describe('partsForWeekType', () => {
+  const iloko = () =>
+    buildDefaultWeekParts('regular').map((p) =>
+      p.part_type === 'cbs'
+        ? { ...p, title: 'Panagadal ti Kongregasion iti Biblia' }
+        : { ...p, title: `ILO ${p.title}` }
+    );
+
+  it('keeps imported titles when switching to a CO visit week', () => {
+    const parts = partsForWeekType(iloko(), 'co_visit', 'ilo');
+    const kept = parts.filter((p) => p.part_type !== 'service_talk');
+    expect(kept.every((p) => p.title.startsWith('ILO '))).toBe(true);
+    expect(parts.some((p) => p.part_type === 'cbs')).toBe(false);
+    const talk = parts.find((p) => p.part_type === 'service_talk');
+    expect(talk?.title).toContain('Manangaywan iti Sirkito');
+  });
+
+  it('restores the CBS in the workbook language when switching back', () => {
+    const co = partsForWeekType(iloko(), 'co_visit', 'ilo');
+    const parts = partsForWeekType(co, 'regular', 'ilo');
+    expect(parts.find((p) => p.part_type === 'cbs')?.title).toBe('Panagadal ti Kongregasion iti Biblia');
+    expect(parts.some((p) => p.part_type === 'service_talk')).toBe(false);
+  });
+
+  it('falls back to defaults when there is nothing to keep', () => {
+    expect(partsForWeekType([], 'co_visit').length).toBe(buildDefaultWeekParts('co_visit').length);
+    expect(partsForWeekType(iloko(), 'no_meeting')).toEqual([]);
   });
 });
 

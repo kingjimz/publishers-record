@@ -18,7 +18,7 @@ import {
   PART_TYPE_LABELS,
   PART_TYPE_RULES,
   ROLE_RULES,
-  buildDefaultWeekParts,
+  partsForWeekType,
 } from './meeting-defaults';
 import { MeetingWeekWorkbookComponent } from './meeting-week-workbook.component';
 
@@ -173,7 +173,7 @@ export class MeetingWeekEditorComponent {
 
   private applyWeekType(newType: MeetingWeekType): void {
     this.week.week_type = newType;
-    this.week.parts = buildDefaultWeekParts(newType);
+    this.week.parts = partsForWeekType(this.week.parts, newType, this.language);
     if (newType !== 'no_meeting') this.week.no_meeting_reason = null;
   }
 
