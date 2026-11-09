@@ -1,15 +1,17 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 
 import { SupabaseService } from '../../services/supabase.service';
 import { ToastService } from '../../services/toast.service';
+import { ThemeService } from '../../services/theme.service';
+import { AuthBrandPanelComponent } from '../auth/auth-brand-panel.component';
 
 @Component({
   selector: 'app-forgot-password',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, AuthBrandPanelComponent],
   templateUrl: './forgot-password.component.html',
   styleUrl: './forgot-password.component.css',
 })
@@ -18,6 +20,8 @@ export class ForgotPasswordComponent implements OnInit {
   protected newPassword = '';
   protected confirmPassword = '';
   protected loading = false;
+
+  protected readonly theme = inject(ThemeService);
 
   constructor(
     private readonly supabase: SupabaseService,

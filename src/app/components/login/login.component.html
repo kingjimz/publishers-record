@@ -1,48 +1,94 @@
-<div class="h-screen overflow-hidden bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center px-6 py-6 transition-colors">
-  <div class="w-full max-w-sm mx-auto flex-shrink-0">
-    <div class="mb-10">
-      <h1 class="text-2xl font-semibold text-slate-900 dark:text-slate-100 tracking-tight">Congregation Tools</h1>
-      <p class="mt-1.5 text-sm text-slate-500 dark:text-slate-400">Sign in to your account</p>
+<div class="min-h-screen grid lg:grid-cols-[45fr_55fr] bg-white dark:bg-slate-900 transition-colors">
+  <app-auth-brand-panel />
+
+  <main class="relative flex flex-col px-6 py-8 sm:px-12 lg:px-16">
+    <!-- Top bar: compact brand (mobile) + theme toggle -->
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3 lg:invisible">
+        <span class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white dark:bg-slate-800 p-1.5 border border-slate-200 dark:border-slate-700 shadow-soft">
+          <img src="logo.png" alt="" class="w-full h-full object-contain" />
+        </span>
+        <div>
+          <p class="text-sm font-semibold text-slate-900 dark:text-slate-100 leading-tight">Congregation Tools</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Bolaoen Congregation</p>
+        </div>
+      </div>
+      <button type="button" (click)="theme.toggle()"
+        class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        [attr.aria-label]="theme.isDark() ? 'Switch to light mode' : 'Switch to dark mode'">
+        @if (theme.isDark()) {
+          <i class="bi bi-sun text-base"></i>
+        } @else {
+          <i class="bi bi-moon text-base"></i>
+        }
+      </button>
     </div>
 
-    <form (ngSubmit)="onLogin()" class="space-y-5">
-      <div>
-        <label for="login-email" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Email</label>
-        <input
-          id="login-email"
-          type="email"
-          class="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-lg focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500"
-          [(ngModel)]="email"
-          name="email"
-          required
-          autocomplete="email"
-          placeholder="you@example.com"
-        />
+    <!-- Form -->
+    <div class="flex-1 flex items-center justify-center py-10">
+      <div class="w-full max-w-sm">
+        <div class="mb-8">
+          <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">Welcome back</h1>
+          <p class="mt-1.5 text-sm text-slate-500 dark:text-slate-400">Sign in to continue to Congregation Tools</p>
+        </div>
+
+        <form (ngSubmit)="onLogin()" class="space-y-5" novalidate>
+          <div>
+            <label for="login-email" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Email</label>
+            <input
+              id="login-email"
+              type="email"
+              class="ms-field py-2.5"
+              [(ngModel)]="email"
+              name="email"
+              required
+              autocomplete="email"
+              placeholder="you@example.com"
+            />
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label for="login-password" class="block text-sm font-medium text-slate-700 dark:text-slate-300">Password</label>
+              <a routerLink="/forgot-password"
+                class="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300">
+                Forgot password?
+              </a>
+            </div>
+            <div class="relative">
+              <input
+                id="login-password"
+                [type]="showPassword ? 'text' : 'password'"
+                class="ms-field py-2.5 pr-11"
+                [(ngModel)]="password"
+                name="password"
+                required
+                autocomplete="current-password"
+                placeholder="Enter your password"
+              />
+              <button type="button" (click)="togglePassword()"
+                class="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+                [attr.aria-pressed]="showPassword">
+                <i class="bi text-base" [class.bi-eye]="!showPassword" [class.bi-eye-slash]="showPassword"></i>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" class="ms-btn ms-btn-primary w-full py-3" [disabled]="loading">
+            @if (loading) {
+              <i class="bi bi-arrow-repeat animate-spin text-base"></i>
+              <span>Signing in...</span>
+            } @else {
+              <span>Sign in</span>
+            }
+          </button>
+        </form>
+
+        <p class="mt-8 text-center text-xs text-slate-400 dark:text-slate-500">
+          Access is managed by your congregation secretary.
+        </p>
       </div>
-
-      <div>
-        <label for="login-password" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Password</label>
-        <input
-          id="login-password"
-          type="password"
-          class="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-lg focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500"
-          [(ngModel)]="password"
-          name="password"
-          required
-          autocomplete="current-password"
-          placeholder="Enter your password"
-        />
-      </div>
-
-      <button type="submit"
-        class="w-full py-3 text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 disabled:opacity-60 transition-colors"
-        [disabled]="loading">
-        {{ loading ? 'Signing in...' : 'Sign in' }}
-      </button>
-    </form>
-
-    <p class="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
-      <a routerLink="/forgot-password" class="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium">Forgot password?</a>
-    </p>
-  </div>
+    </div>
+  </main>
 </div>

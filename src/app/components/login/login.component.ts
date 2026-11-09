@@ -6,11 +6,12 @@ import { FormsModule } from '@angular/forms';
 import { SupabaseService } from '../../services/supabase.service';
 import { ToastService } from '../../services/toast.service';
 import { ThemeService } from '../../services/theme.service';
+import { AuthBrandPanelComponent } from '../auth/auth-brand-panel.component';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, AuthBrandPanelComponent],
   templateUrl: './login.component.html',
   styleUrl: './login.component.css',
 })
@@ -18,6 +19,7 @@ export class LoginComponent implements OnInit {
   protected email = '';
   protected password = '';
   protected loading = false;
+  protected showPassword = false;
 
   protected readonly theme = inject(ThemeService);
 
@@ -27,6 +29,10 @@ export class LoginComponent implements OnInit {
     private readonly toast: ToastService,
     private readonly cdr: ChangeDetectorRef
   ) {}
+
+  protected togglePassword(): void {
+    this.showPassword = !this.showPassword;
+  }
 
   ngOnInit(): void {
     if (this.supabase.isAuthenticated()) {
