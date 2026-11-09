@@ -5,7 +5,6 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { filter } from 'rxjs';
 import { OnboardingWelcomeComponent } from '../components/onboarding-welcome/onboarding-welcome.component';
 import { OnboardingService } from '../services/onboarding.service';
-import { IncomingReportsService } from '../services/incoming-reports.service';
 import { SupabaseService } from '../services/supabase.service';
 import { ThemeService } from '../services/theme.service';
 import { layoutRouteAnimations } from '../animations/layout-route.animations';
@@ -33,7 +32,6 @@ export class LayoutComponent implements OnInit {
   readonly supabase: SupabaseService;
   protected readonly onboarding = inject(OnboardingService);
   protected readonly theme = inject(ThemeService);
-  protected readonly incomingReports = inject(IncomingReportsService);
   private readonly router = inject(Router);
 
   /**
@@ -69,7 +67,6 @@ export class LayoutComponent implements OnInit {
   async ngOnInit(): Promise<void> {
     await this.supabase.ensureSession();
     this.onboarding.tryAutoOpen();
-    void this.incomingReports.initializeCount();
     this.routeAnimKey.set(this.animationKeyFromRouter());
     this.currentToolLabel.set(this.toolLabelFromRouter());
     this.breadcrumbs.set(this.breadcrumbsFromRouter());
